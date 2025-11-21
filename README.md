@@ -19,7 +19,6 @@
 A high-performance, terminal-based audio spectrum visualizer written in Rust that transforms your audio into mesmerizing real-time visual patterns.
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/db5daa81-a06b-45a9-b760-2e45e307eb61" />
 
-
 ## What It Does
 
 Lookas captures your system audio, breaks it into frequency bands with a mel-scale FFT, and renders it as smooth, physics-driven bars in the terminal. Adaptive gain and noise gating keep the visuals clean, while zero-copy rendering ensures 60+ FPS with minimal latency. Multiple layouts are supported, and it runs cross-platform on Linux, macOS, and Windows, given you have Rust installed.
@@ -108,7 +107,7 @@ LOOKAS_FMIN=40 LOOKAS_FMAX=12000 LOOKAS_TAU_SPEC=0.12 lookas
 
 ## How It Works
 
-Lookas runs a fast, low-latency audio pipeline built to turn raw sound into smooth, responsive visuals. It starts by hooking directly into your system audio, through a loopback device, so what you see is exactly what you hear, no setup friction, no manual wiring.
+Lookas runs a fast, low-latency audio pipeline built to turn raw sound into smooth, responsive visuals. It starts by hooking directly into your system audio, through a loopback device, so what you see is exactly what you hear.
 
 The signal is then windowed with Hann smoothing to avoid leakage and pushed through an FFT to break the stream into frequency components. Those raw bins are remapped onto a mel-scale filterbank so the output reflects how we actually perceive sound rather than just a grid of math.
 
@@ -118,9 +117,8 @@ On top of that sits a lightweight physics model. Instead of raw bar jumps, Looka
 
 Finally, the renderer pushes everything to the terminal with dense Unicode block characters, letting gradients show up clean without burning cycles. FFT calls are SIMD-accelerated where hardware allows, memory access is cache-friendly, and processing adapts automatically to the system it runs on.
 
-On modern machines, this translates to a consistent 60+ frames per second with sub-5ms audio latency—snappy enough that the visuals feel like part of the sound itself.
+On modern machines, this translates to a consistent 60+ frames per second with sub-5ms audio latency, snappy enough that the visuals feel like part of the sound itself.
 
 ## License
 
 [MIT](LICENSE)
-
