@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/rust-lang/rust-artwork/master/logo/rust-logo-256x256.png" height="80" alt="Rust Logo"/>
-</p>
-
 <h1 align="center">Lookas</h1>
 
 <p align="center">
@@ -17,6 +13,9 @@
 </p>
 
 A high-performance, terminal-based audio spectrum visualizer written in Rust that transforms your audio into mesmerizing real-time visual patterns.
+
+## Overview 
+
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/db5daa81-a06b-45a9-b760-2e45e307eb61" />
 
 ## What It Does
@@ -121,4 +120,4 @@ On modern machines, this translates to a consistent 60+ frames per second with s
 
 ## License
 
-[MIT](LICENSE)
+MIT © [@rccyx](https://rccyx.com)
