@@ -6,19 +6,92 @@ use rustfft::num_traits::ToPrimitive;
 use crate::buffer::SharedBuf;
 use std::sync::{Arc, Mutex};
 
+fn score_device_name(name: &str) -> i32 {
+    let n = name.to_lowercase();
+    let mut score = 0;
+
+    // prefer obvious sink monitors
+    if n.contains("monitor of") {
+        score += 200;
+    }
+    if n.contains(".monitor") {
+        score += 160;
+    }
+    if n.contains("monitor") {
+        score += 100;
+    }
+
+    // extra hints that it is an output path
+    if n.contains("sink")
+        || n.contains("output")
+        || n.contains("speaker")
+    {
+        score += 40;
+    }
+
+    // penalize obvious mics and webcams
+    if n.contains("mic") || n.contains("microphone") {
+        score -= 80;
+    }
+    if n.contains("webcam") || n.contains("camera") {
+        score -= 80;
+    }
+    if n.contains("headset") || n.contains("headphone") {
+        score -= 40;
+    }
+    if n.contains("input") {
+        score -= 20;
+    }
+
+    score
+}
+
 pub fn pick_input_device() -> Result<Device> {
     let host = cpal::default_host();
 
-    if let Ok(devices) = host.input_devices() {
-        for dev in devices {
-            if let Ok(name) = dev.name() {
-                if name.to_lowercase().contains("monitor") {
-                    return Ok(dev);
+    // manual override: LOOKAS_DEVICE=substring
+    if let Ok(filter) = std::env::var("LOOKAS_DEVICE") {
+        let filter = filter.to_lowercase();
+        if let Ok(devices) = host.input_devices() {
+            for dev in devices {
+                if let Ok(name) = dev.name() {
+                    if name.to_lowercase().contains(&filter) {
+                        return Ok(dev);
+                    }
                 }
             }
         }
     }
 
+    // automatic scoring based on device name
+    let mut best: Option<(Device, i32)> = None;
+
+    if let Ok(devices) = host.input_devices() {
+        for dev in devices {
+            let name = match dev.name() {
+                Ok(n) => n,
+                Err(_) => continue,
+            };
+
+            let score = score_device_name(&name);
+            if score <= 0 {
+                continue;
+            }
+
+            match best {
+                Some((_, best_score)) if score <= best_score => {}
+                _ => {
+                    best = Some((dev, score));
+                }
+            }
+        }
+    }
+
+    if let Some((dev, _)) = best {
+        return Ok(dev);
+    }
+
+    // fallback: whatever CPAL thinks is the default input
     host.default_input_device()
         .context("No default input device")
 }
@@ -43,7 +116,6 @@ where
     let stream = device.build_input_stream(
         &cfg,
         move |data: &[T], _| {
-            // try to acquire lock, skip if busy
             if let Ok(mut buf) = shared.try_lock() {
                 let frames = data.chunks_exact(ch);
                 for frame in frames {
