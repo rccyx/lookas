@@ -14,9 +14,9 @@
 
 A high-performance, terminal-based audio spectrum visualizer written in Rust that transforms your audio into mesmerizing real-time visual patterns.
 
-## Overview 
+## Overview
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/db5daa81-a06b-45a9-b760-2e45e307eb61" />
+<img width="1913" height="1080" alt="image" src="https://github.com/user-attachments/assets/89f5cac5-e6c5-48bb-a029-d29172765200" />
 
 ## What It Does
 
