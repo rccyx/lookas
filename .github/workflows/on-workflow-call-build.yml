@@ -45,14 +45,14 @@ jobs:
 
       - name: Upload artifact (Linux/macOS)
         if: runner.os != 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lookas-${{ runner.os }}-${{ github.sha }}
           path: target/release/lookas
 
       - name: Upload artifact (Windows)
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lookas-${{ runner.os }}-${{ github.sha }}
           path: target/release/lookas.exe
