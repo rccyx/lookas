@@ -63,7 +63,6 @@ fn main() -> Result<()> {
     let spr_k: f32 = get_env("LOOKAS_SPR_K", 60.0);
     let spr_zeta: f32 = get_env("LOOKAS_SPR_ZETA", 1.0);
 
-    let show_hud: bool = false;
     let top_pad: u16 = 0;
 
     let mut out = stdout();
@@ -124,10 +123,14 @@ fn main() -> Result<()> {
 
     let mut buf = Vec::with_capacity(fft_size);
     let mut spec_pow = vec![0.0; half];
-    let mut header = String::with_capacity(256);
     let mut mix = vec![0.0f32; fft_size];
 
+    let (mut w, mut h) = terminal::size()?;
+    let mut lay = layout_for(w, h, orient, mode, top_pad);
+
     loop {
+        let mut layout_dirty = false;
+
         if crossterm::event::poll(Duration::ZERO)? {
             if let crossterm::event::Event::Key(k) =
                 crossterm::event::read()?
@@ -135,8 +138,14 @@ fn main() -> Result<()> {
                 use crossterm::event::KeyCode::*;
                 match k.code {
                     Char('q') => return Ok(()),
-                    Char('v') => orient = Orient::Vertical,
-                    Char('h') => orient = Orient::Horizontal,
+                    Char('v') => {
+                        orient = Orient::Vertical;
+                        layout_dirty = true;
+                    }
+                    Char('h') => {
+                        orient = Orient::Horizontal;
+                        layout_dirty = true;
+                    }
 
                     Char('1') => {
                         reset_buf(&mic_shared, ring_cap);
@@ -189,13 +198,21 @@ fn main() -> Result<()> {
         let dt = now.duration_since(last);
         if dt < target_dt {
             thread::sleep(target_dt - dt);
-            continue;
         }
-        let dt_s = dt.as_secs_f32();
+        let now = Instant::now();
+        let dt_s = now.duration_since(last).as_secs_f32();
         last = now;
 
-        let (w, h) = terminal::size()?;
-        let lay = layout_for(w, h, orient, mode, top_pad);
+        let (nw, nh) = terminal::size()?;
+        if nw != w || nh != h {
+            w = nw;
+            h = nh;
+            layout_dirty = true;
+        }
+        if layout_dirty {
+            lay = layout_for(w, h, orient, mode, top_pad);
+        }
+
         let desired_bars = lay.bars;
 
         if analyzer.filters.len() != desired_bars {
@@ -280,9 +297,8 @@ fn main() -> Result<()> {
 
         queue!(
             out,
-            terminal::Clear(ClearType::All),
             cursor::MoveTo(0, 0),
-            SetForegroundColor(Color::White)
+            terminal::Clear(ClearType::FromCursorDown),
         )?;
 
         match orient {

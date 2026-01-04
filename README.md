@@ -1,5 +1,3 @@
--> get pulseaudio-utils
-
 <h1 align="center">Lookas</h1>
 
 <p align="center">
@@ -14,7 +12,8 @@
   </a>
 </p>
 
-A high-performance, terminal-based audio spectrum visualizer written in Rust that transforms your audio into mesmerizing real-time visual patterns.
+A high-performance, terminal-based audio spectrum visualizer written in Rust.  
+Designed to be smooth, low-latency, and visually stable under audio load.
 
 ## Overview
 
@@ -22,85 +21,106 @@ A high-performance, terminal-based audio spectrum visualizer written in Rust tha
 
 ## What It Does
 
-Lookas captures your system audio, breaks it into frequency bands with a mel-scale FFT, and renders it as smooth, physics-driven bars in the terminal. Adaptive gain and noise gating keep the visuals clean, while zero-copy rendering ensures 60+ FPS with minimal latency. Multiple layouts are supported, and it runs cross-platform on Linux, macOS, and Windows, given you have Rust installed.
+Lookas captures **microphone input, system audio, or both**, converts the signal into frequency bands using a mel-scale FFT, and renders it as smooth, physics-driven bars directly in the terminal.
 
-### Installation
+Adaptive gain control and noise gating keep the display clean. A spring-damper animation model gives the bars weight and continuity instead of raw jitter. Rendering is optimized for terminal throughput and stable frame pacing rather than flashy redraw tricks.
+
+The result is a visualizer that feels connected to the sound, not a noisy oscilloscope clone.
+
+## Installation
 
 ```bash
 cargo install lookas
 ```
 
-### Basic Usage
+### System Audio (Linux)
 
-Simply run the visualizer with default settings:
+For system audio capture, Lookas relies on PulseAudio / PipeWire utilities.
+
+If not installed already, run:
+
+```bash
+sudo apt install pulseaudio-utils
+```
+
+This works on both PulseAudio and PipeWire setups via `pipewire-pulse`.
+
+## Basic Usage
+
+Run with defaults:
 
 ```bash
 lookas
 ```
 
-**Controls:**
+By default, Lookas will attempt to start with system audio. If that fails, it falls back to microphone input.
 
-- `h` - Switch to horizontal orientation
-- `v` - Switch to vertical orientation
-- `q` - Quit the application
+## Controls
+
+- `v` – Vertical orientation
+- `h` – Horizontal orientation
+- `1` – Microphone input
+- `2` – System audio (loopback / monitor)
+- `3` – Microphone + system mix
+- `r` – Restart audio pipeline
+- `q` – Quit
 
 ## Configuration
 
-You can fine-tune the visualization for your specific audio setup and preferences using these environment variables.
+Lookas is configured entirely through environment variables.
 
-### Settings
+### Frequency & Resolution
 
-| Variable          | Description                       | Default | Range                 |
-| ----------------- | --------------------------------- | ------- | --------------------- |
-| `LOOKAS_FMIN`     | Minimum frequency to display (Hz) | 30.0    | 10.0 - 1000.0         |
-| `LOOKAS_FMAX`     | Maximum frequency to display (Hz) | 16000.0 | 1000.0 - 24000.0      |
-| `LOOKAS_FFT_SIZE` | FFT window size (power of 2)      | 2048    | 512, 1024, 2048, 4096 |
+| Variable          | Description                    | Default | Range            |
+| ----------------- | ------------------------------ | ------- | ---------------- |
+| `LOOKAS_FMIN`     | Minimum frequency (Hz)         | 30.0    | 10.0 – 1000.0    |
+| `LOOKAS_FMAX`     | Maximum frequency (Hz)         | 16000.0 | 1000.0 – 24000.0 |
+| `LOOKAS_FFT_SIZE` | FFT window size (power of two) | 2048    | 512 – 4096       |
 
-### Performance & Display
+### Performance & Layout
 
-| Variable               | Description                      | Default | Range             |
-| ---------------------- | -------------------------------- | ------- | ----------------- |
-| `LOOKAS_TARGET_FPS_MS` | Target frame time (milliseconds) | 16      | 8 - 50            |
-| `LOOKAS_MODE`          | Display mode                     | "rows"  | "rows", "columns" |
-| `LOOKAS_HUD`           | Show header with device info     | 0       | 0, 1              |
+| Variable               | Description            | Default | Range             |
+| ---------------------- | ---------------------- | ------- | ----------------- |
+| `LOOKAS_TARGET_FPS_MS` | Target frame time (ms) | 16      | 8 – 50            |
+| `LOOKAS_MODE`          | Horizontal layout mode | "rows"  | "rows", "columns" |
 
 ### Audio Processing
 
-| Variable            | Description                      | Default | Range         |
-| ------------------- | -------------------------------- | ------- | ------------- |
-| `LOOKAS_TAU_SPEC`   | Spectrum smoothing time constant | 0.06    | 0.01 - 0.20   |
-| `LOOKAS_GATE_DB`    | Noise gate threshold (dB)        | -55.0   | -80.0 - -30.0 |
-| `LOOKAS_TILT_ALPHA` | Frequency response tilt factor   | 0.30    | 0.0 - 1.0     |
+| Variable            | Description                 | Default | Range         |
+| ------------------- | --------------------------- | ------- | ------------- |
+| `LOOKAS_TAU_SPEC`   | Spectrum smoothing constant | 0.06    | 0.01 – 0.20   |
+| `LOOKAS_GATE_DB`    | Noise gate threshold (dB)   | -55.0   | -80.0 – -30.0 |
+| `LOOKAS_TILT_ALPHA` | Frequency response tilt     | 0.30    | 0.0 – 1.0     |
 
 ### Animation Physics
 
-| Variable          | Description                       | Default | Range        |
-| ----------------- | --------------------------------- | ------- | ------------ |
-| `LOOKAS_FLOW_K`   | Horizontal flow between bars      | 0.18    | 0.0 - 1.0    |
-| `LOOKAS_SPR_K`    | Spring stiffness for bar movement | 60.0    | 10.0 - 200.0 |
-| `LOOKAS_SPR_ZETA` | Spring damping factor             | 1.0     | 0.1 - 2.0    |
+| Variable          | Description                 | Default | Range        |
+| ----------------- | --------------------------- | ------- | ------------ |
+| `LOOKAS_FLOW_K`   | Horizontal energy diffusion | 0.18    | 0.0 – 1.0    |
+| `LOOKAS_SPR_K`    | Spring stiffness            | 60.0    | 10.0 – 200.0 |
+| `LOOKAS_SPR_ZETA` | Spring damping              | 1.0     | 0.1 – 2.0    |
 
-### Example Configurations
+## Example Configurations
 
-**High-Resolution Mode** (more frequency detail):
+High frequency resolution:
 
 ```bash
 LOOKAS_FFT_SIZE=4096 LOOKAS_FMIN=20 LOOKAS_FMAX=20000 lookas
 ```
 
-**Performance Mode** (smooth on lower-end systems):
+Lower CPU usage:
 
 ```bash
 LOOKAS_TARGET_FPS_MS=33 LOOKAS_FFT_SIZE=1024 lookas
 ```
 
-**Bass-Heavy Music**:
+Bass-focused music:
 
 ```bash
 LOOKAS_FMIN=20 LOOKAS_FMAX=8000 LOOKAS_TILT_ALPHA=0.1 lookas
 ```
 
-**Classical Music**:
+Smoother classical dynamics:
 
 ```bash
 LOOKAS_FMIN=40 LOOKAS_FMAX=12000 LOOKAS_TAU_SPEC=0.12 lookas
@@ -108,17 +128,17 @@ LOOKAS_FMIN=40 LOOKAS_FMAX=12000 LOOKAS_TAU_SPEC=0.12 lookas
 
 ## How It Works
 
-Lookas runs a fast, low-latency audio pipeline built to turn raw sound into smooth, responsive visuals. It starts by hooking directly into your system audio, through a loopback device, so what you see is exactly what you hear.
+Lookas runs a low-latency audio pipeline designed for visual stability first.
 
-The signal is then windowed with Hann smoothing to avoid leakage and pushed through an FFT to break the stream into frequency components. Those raw bins are remapped onto a mel-scale filterbank so the output reflects how we actually perceive sound rather than just a grid of math.
+Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
 
-To keep the display clean and balanced, it constantly adjusts its dynamic range. It tracks energy percentiles to scale loudness in real time, cuts off background hiss with noise gating, and applies frequency tilt so no single band overwhelms the others. The result is a visual field that feels natural and reacts instantly to changes in the mix.
+Dynamic range is managed continuously using percentile tracking instead of fixed scaling. A noise gate suppresses background hiss, while frequency tilt prevents low or high bands from dominating the display.
 
-On top of that sits a lightweight physics model. Instead of raw bar jumps, Lookas runs each band through a spring-damper system so motion carries weight and flow. Energy diffuses between neighbors, giving the spectrum a fluid, wave-like feel. Every calculation is written to avoid allocations on the hot path, which means it runs smooth even at high refresh.
+Animation is driven by a spring-damper model rather than raw amplitude changes. Energy diffuses laterally between neighboring bands, producing motion that feels fluid instead of twitchy. All hot-path operations are allocation-free, cache-friendly, and designed to maintain consistent frame pacing.
 
-Finally, the renderer pushes everything to the terminal with dense Unicode block characters, letting gradients show up clean without burning cycles. FFT calls are SIMD-accelerated where hardware allows, memory access is cache-friendly, and processing adapts automatically to the system it runs on.
+Rendering uses dense Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
 
-On modern machines, this translates to a consistent 60+ frames per second with sub-5ms audio latency, snappy enough that the visuals feel like part of the sound itself.
+On modern Linux systems, this yields a stable 60+ FPS experience with audio-to-visual latency low enough to feel immediate.
 
 ## License
 
