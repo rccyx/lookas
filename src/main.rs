@@ -10,13 +10,16 @@ use lookas::{
     buffer::SharedBuf,
     dsp::{hann, prepare_fft_input_inplace},
     filterbank::build_filterbank,
-    render::{draw_blocks_horizontal, draw_blocks_vertical, layout_for, Mode, Orient},
+    render::{
+        draw_blocks_horizontal, draw_blocks_vertical, layout_for,
+        Mode, Orient,
+    },
     utils::scopeguard,
 };
 use rustfft::FftPlanner;
 use std::{
     env,
-    io::{stdout, Write},
+    io::stdout,
     sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
@@ -60,8 +63,8 @@ fn main() -> Result<()> {
     let spr_k: f32 = get_env("LOOKAS_SPR_K", 60.0);
     let spr_zeta: f32 = get_env("LOOKAS_SPR_ZETA", 1.0);
 
-    let mut show_hud: bool = get_env("LOOKAS_HUD", 1u8) != 0;
-    let mut top_pad: u16 = if show_hud { 1 } else { 0 };
+    let show_hud: bool = false;
+    let top_pad: u16 = 0;
 
     let mut out = stdout();
     terminal::enable_raw_mode()?;
@@ -75,21 +78,34 @@ fn main() -> Result<()> {
 
     let _cleanup = scopeguard::guard((), |_| {
         let mut out = stdout();
-        let _ = execute!(out, cursor::Show, terminal::LeaveAlternateScreen);
+        let _ = execute!(
+            out,
+            cursor::Show,
+            terminal::LeaveAlternateScreen
+        );
         let _ = terminal::disable_raw_mode();
     });
 
-    let ring_cap = ((48_000usize / 10).max(fft_size * 3)).max(fft_size * 6);
+    let ring_cap =
+        ((48_000usize / 10).max(fft_size * 3)).max(fft_size * 6);
     let mic_shared = Arc::new(Mutex::new(SharedBuf::new(ring_cap)));
     let sys_shared = Arc::new(Mutex::new(SharedBuf::new(ring_cap)));
 
     let mut audio = AudioController::new();
 
     if audio
-        .start(AudioMode::System, mic_shared.clone(), sys_shared.clone())
+        .start(
+            AudioMode::System,
+            mic_shared.clone(),
+            sys_shared.clone(),
+        )
         .is_err()
     {
-        audio.start(AudioMode::Mic, mic_shared.clone(), sys_shared.clone())?;
+        audio.start(
+            AudioMode::Mic,
+            mic_shared.clone(),
+            sys_shared.clone(),
+        )?;
     }
 
     let mut sr_u32 = audio.info().sample_rate;
@@ -113,37 +129,49 @@ fn main() -> Result<()> {
 
     loop {
         if crossterm::event::poll(Duration::ZERO)? {
-            if let crossterm::event::Event::Key(k) = crossterm::event::read()? {
+            if let crossterm::event::Event::Key(k) =
+                crossterm::event::read()?
+            {
                 use crossterm::event::KeyCode::*;
                 match k.code {
                     Char('q') => return Ok(()),
                     Char('v') => orient = Orient::Vertical,
                     Char('h') => orient = Orient::Horizontal,
 
-                    Char('u') => {
-                        show_hud = !show_hud;
-                        top_pad = if show_hud { 1 } else { 0 };
-                    }
-
                     Char('1') => {
                         reset_buf(&mic_shared, ring_cap);
                         reset_buf(&sys_shared, ring_cap);
-                        audio.start(AudioMode::Mic, mic_shared.clone(), sys_shared.clone())?;
+                        audio.start(
+                            AudioMode::Mic,
+                            mic_shared.clone(),
+                            sys_shared.clone(),
+                        )?;
                     }
                     Char('2') => {
                         reset_buf(&mic_shared, ring_cap);
                         reset_buf(&sys_shared, ring_cap);
-                        audio.start(AudioMode::System, mic_shared.clone(), sys_shared.clone())?;
+                        audio.start(
+                            AudioMode::System,
+                            mic_shared.clone(),
+                            sys_shared.clone(),
+                        )?;
                     }
                     Char('3') => {
                         reset_buf(&mic_shared, ring_cap);
                         reset_buf(&sys_shared, ring_cap);
-                        audio.start(AudioMode::Both, mic_shared.clone(), sys_shared.clone())?;
+                        audio.start(
+                            AudioMode::Both,
+                            mic_shared.clone(),
+                            sys_shared.clone(),
+                        )?;
                     }
                     Char('r') => {
                         reset_buf(&mic_shared, ring_cap);
                         reset_buf(&sys_shared, ring_cap);
-                        audio.reset(mic_shared.clone(), sys_shared.clone())?;
+                        audio.reset(
+                            mic_shared.clone(),
+                            sys_shared.clone(),
+                        )?;
                     }
                     _ => {}
                 }
@@ -171,12 +199,26 @@ fn main() -> Result<()> {
         let desired_bars = lay.bars;
 
         if analyzer.filters.len() != desired_bars {
-            analyzer.filters = build_filterbank(sr, fft_size, desired_bars, fmin, fmax);
+            analyzer.filters = build_filterbank(
+                sr,
+                fft_size,
+                desired_bars,
+                fmin,
+                fmax,
+            );
             analyzer.resize(desired_bars);
         }
 
-        let mic_samples = mic_shared.try_lock().ok().map(|b| b.latest()).unwrap_or_default();
-        let sys_samples = sys_shared.try_lock().ok().map(|b| b.latest()).unwrap_or_default();
+        let mic_samples = mic_shared
+            .try_lock()
+            .ok()
+            .map(|b| b.latest())
+            .unwrap_or_default();
+        let sys_samples = sys_shared
+            .try_lock()
+            .ok()
+            .map(|b| b.latest())
+            .unwrap_or_default();
 
         let tail: &[f32] = match audio.mode() {
             AudioMode::Mic => {
@@ -192,7 +234,9 @@ fn main() -> Result<()> {
                 &sys_samples[sys_samples.len() - fft_size..]
             }
             AudioMode::Both => {
-                if mic_samples.len() < fft_size || sys_samples.len() < fft_size {
+                if mic_samples.len() < fft_size
+                    || sys_samples.len() < fft_size
+                {
                     continue;
                 }
                 let mt = &mic_samples[mic_samples.len() - fft_size..];
@@ -218,12 +262,21 @@ fn main() -> Result<()> {
         for i in 0..half {
             let re = buf[i].re;
             let im = buf[i].im;
-            spec_pow[i] = (re * re + im * im) / (fft_size as f32 * fft_size as f32);
+            spec_pow[i] = (re * re + im * im)
+                / (fft_size as f32 * fft_size as f32);
         }
 
         analyzer.update_spectrum(&spec_pow, tau_spec, dt_s);
-        let bars_target = analyzer.analyze_bands(tilt_alpha, dt_s, gate_open);
-        analyzer.apply_flow_and_spring(&bars_target, flow_k, spr_k, spr_zeta, dt_s, gate_open);
+        let bars_target =
+            analyzer.analyze_bands(tilt_alpha, dt_s, gate_open);
+        analyzer.apply_flow_and_spring(
+            &bars_target,
+            flow_k,
+            spr_k,
+            spr_zeta,
+            dt_s,
+            gate_open,
+        );
 
         queue!(
             out,
@@ -232,26 +285,22 @@ fn main() -> Result<()> {
             SetForegroundColor(Color::White)
         )?;
 
-        if show_hud {
-            header.clear();
-            header.push_str("  lookas  |  audio: ");
-            header.push_str(match audio.mode() {
-                AudioMode::Mic => "mic",
-                AudioMode::System => "system",
-                AudioMode::Both => "both",
-            });
-            header.push_str("  |  src: ");
-            header.push_str(&audio.info().label);
-            header.push_str("  |  sr: ");
-            use std::fmt::Write;
-            let _ = write!(header, "{}", sr_u32);
-            header.push_str("  |  keys: 1 mic, 2 sys, 3 both, r restart, v/h, u hud, q\n");
-            out.write_all(header.as_bytes())?;
-        }
-
         match orient {
-            Orient::Vertical => draw_blocks_vertical(&mut out, &analyzer.bars_y, w, h, &lay)?,
-            Orient::Horizontal => draw_blocks_horizontal(&mut out, &analyzer.bars_y, w, h, &lay, mode)?,
+            Orient::Vertical => draw_blocks_vertical(
+                &mut out,
+                &analyzer.bars_y,
+                w,
+                h,
+                &lay,
+            )?,
+            Orient::Horizontal => draw_blocks_horizontal(
+                &mut out,
+                &analyzer.bars_y,
+                w,
+                h,
+                &lay,
+                mode,
+            )?,
         }
     }
 }

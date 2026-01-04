@@ -128,7 +128,8 @@ pub fn pick_input_device() -> Result<Device> {
         }
     }
 
-    host.default_input_device().context("No default input device")
+    host.default_input_device()
+        .context("No default input device")
 }
 
 pub fn best_config_for(device: &Device) -> Result<StreamConfig> {
@@ -180,10 +181,17 @@ fn start_mic(shared: Arc<Mutex<SharedBuf>>) -> Result<MicHandle> {
     let cfg = best_config_for(&device)?;
     let sample_rate = cfg.sample_rate.0;
 
-    let stream = match device.default_input_config()?.sample_format() {
-        SampleFormat::F32 => build_stream::<f32>(device, cfg.clone(), shared)?,
-        SampleFormat::I16 => build_stream::<i16>(device, cfg.clone(), shared)?,
-        SampleFormat::U16 => build_stream::<u16>(device, cfg.clone(), shared)?,
+    let stream = match device.default_input_config()?.sample_format()
+    {
+        SampleFormat::F32 => {
+            build_stream::<f32>(device, cfg.clone(), shared)?
+        }
+        SampleFormat::I16 => {
+            build_stream::<i16>(device, cfg.clone(), shared)?
+        }
+        SampleFormat::U16 => {
+            build_stream::<u16>(device, cfg.clone(), shared)?
+        }
         _ => anyhow::bail!("Unsupported sample format"),
     };
 
@@ -250,10 +258,21 @@ fn pulse_sources() -> Result<Vec<SourceInfo>> {
         let rate_tok = parts[5];
         let state = parts[6].to_string();
 
-        let channels = ch_tok.strip_suffix("ch").and_then(|x| x.parse().ok()).unwrap_or(2);
-        let rate = rate_tok.strip_suffix("Hz").and_then(|x| x.parse().ok()).unwrap_or(48_000);
+        let channels = ch_tok
+            .strip_suffix("ch")
+            .and_then(|x| x.parse().ok())
+            .unwrap_or(2);
+        let rate = rate_tok
+            .strip_suffix("Hz")
+            .and_then(|x| x.parse().ok())
+            .unwrap_or(48_000);
 
-        out.push(SourceInfo { name, channels, rate, state });
+        out.push(SourceInfo {
+            name,
+            channels,
+            rate,
+            state,
+        });
     }
 
     Ok(out)
@@ -265,7 +284,10 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
 
     if let Ok(want) = std::env::var("LOOKAS_SYS_DEVICE") {
         let w = want.to_lowercase();
-        if let Some(hit) = sources.iter().find(|s| s.name.to_lowercase().contains(&w)) {
+        if let Some(hit) = sources
+            .iter()
+            .find(|s| s.name.to_lowercase().contains(&w))
+        {
             return Ok(hit.clone());
         }
         anyhow::bail!("LOOKAS_SYS_DEVICE was set but no pulse source matched it");
@@ -296,7 +318,9 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
         if !sink.is_empty() {
             let mon = format!("{}.monitor", sink);
             let sources = pulse_sources()?;
-            if let Some(hit) = sources.into_iter().find(|s| s.name == mon) {
+            if let Some(hit) =
+                sources.into_iter().find(|s| s.name == mon)
+            {
                 return Ok(hit);
             }
         }
@@ -306,13 +330,16 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
 }
 
 #[cfg(target_os = "linux")]
-fn start_system(shared: Arc<Mutex<SharedBuf>>, rate: u32) -> Result<SystemHandle> {
+fn start_system(
+    shared: Arc<Mutex<SharedBuf>>,
+    rate: u32,
+) -> Result<SystemHandle> {
     use std::io::Read;
     use std::thread;
 
     let src = resolve_monitor_source()?;
     let channels = src.channels.max(1);
-    let use_rate = src.rate.max(8_000).min(192_000).max(rate);
+    let use_rate = src.rate.clamp(8_000, 192_000).max(rate);
 
     let mut child = Command::new("parec")
         .args([
@@ -327,9 +354,12 @@ fn start_system(shared: Arc<Mutex<SharedBuf>>, rate: u32) -> Result<SystemHandle
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()
-        .with_context(|| format!("failed to spawn parec on {}", src.name))?;
+        .with_context(|| {
+            format!("failed to spawn parec on {}", src.name)
+        })?;
 
-    let mut stdout = child.stdout.take().context("parec stdout missing")?;
+    let mut stdout =
+        child.stdout.take().context("parec stdout missing")?;
 
     let join = thread::spawn(move || {
         let mut buf = [0u8; 16 * 1024];
@@ -383,7 +413,10 @@ fn start_system(shared: Arc<Mutex<SharedBuf>>, rate: u32) -> Result<SystemHandle
 }
 
 #[cfg(not(target_os = "linux"))]
-fn start_system(_: Arc<Mutex<SharedBuf>>, _: u32) -> Result<SystemHandle> {
+fn start_system(
+    _: Arc<Mutex<SharedBuf>>,
+    _: u32,
+) -> Result<SystemHandle> {
     anyhow::bail!("system capture is linux-only in this build")
 }
 
