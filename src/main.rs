@@ -1,6 +1,4 @@
 use anyhow::Result;
-use cpal::traits::{DeviceTrait, StreamTrait};
-use cpal::SampleFormat;
 use crossterm::{
     cursor, execute, queue,
     style::{Color, SetForegroundColor},
@@ -8,14 +6,11 @@ use crossterm::{
 };
 use lookas::{
     analyzer::SpectrumAnalyzer,
-    audio::{best_config_for, build_stream, pick_input_device},
+    audio::{AudioController, AudioMode},
     buffer::SharedBuf,
     dsp::{hann, prepare_fft_input_inplace},
     filterbank::build_filterbank,
-    render::{
-        draw_blocks_horizontal, draw_blocks_vertical, layout_for,
-        Mode, Orient,
-    },
+    render::{draw_blocks_horizontal, draw_blocks_vertical, layout_for, Mode, Orient},
     utils::scopeguard,
 };
 use rustfft::FftPlanner;
@@ -47,20 +42,13 @@ fn mode_from_env() -> Mode {
     }
 }
 
-fn main() -> Result<()> {
-    #[cfg(unix)]
-    unsafe {
-        use libc::dup2;
-        use std::fs::OpenOptions;
-        use std::os::unix::io::AsRawFd;
-
-        if let Ok(devnull) =
-            OpenOptions::new().write(true).open("/dev/null")
-        {
-            dup2(devnull.as_raw_fd(), libc::STDERR_FILENO);
-        }
+fn reset_buf(shared: &Arc<Mutex<SharedBuf>>, cap: usize) {
+    if let Ok(mut b) = shared.lock() {
+        *b = SharedBuf::new(cap);
     }
+}
 
+fn main() -> Result<()> {
     let fmin: f32 = get_env("LOOKAS_FMIN", 30.0);
     let fmax: f32 = get_env("LOOKAS_FMAX", 16_000.0);
     let target_fps_ms: u64 = get_env("LOOKAS_TARGET_FPS_MS", 16);
@@ -72,8 +60,8 @@ fn main() -> Result<()> {
     let spr_k: f32 = get_env("LOOKAS_SPR_K", 60.0);
     let spr_zeta: f32 = get_env("LOOKAS_SPR_ZETA", 1.0);
 
-    let show_hud: bool = get_env("LOOKAS_HUD", 0u8) != 0;
-    let top_pad: u16 = if show_hud { 1 } else { 0 };
+    let mut show_hud: bool = get_env("LOOKAS_HUD", 1u8) != 0;
+    let mut top_pad: u16 = if show_hud { 1 } else { 0 };
 
     let mut out = stdout();
     terminal::enable_raw_mode()?;
@@ -87,42 +75,25 @@ fn main() -> Result<()> {
 
     let _cleanup = scopeguard::guard((), |_| {
         let mut out = stdout();
-        let _ = execute!(
-            out,
-            cursor::Show,
-            terminal::LeaveAlternateScreen
-        );
+        let _ = execute!(out, cursor::Show, terminal::LeaveAlternateScreen);
         let _ = terminal::disable_raw_mode();
     });
 
-    let device = pick_input_device()?;
-    let name = device.name().unwrap_or_else(|_| "<unknown>".into());
-    let cfg = best_config_for(&device)?;
-    let sr = cfg.sample_rate.0 as f32;
+    let ring_cap = ((48_000usize / 10).max(fft_size * 3)).max(fft_size * 6);
+    let mic_shared = Arc::new(Mutex::new(SharedBuf::new(ring_cap)));
+    let sys_shared = Arc::new(Mutex::new(SharedBuf::new(ring_cap)));
 
-    let ring_len = (sr as usize / 10).max(fft_size * 3);
-    let shared = Arc::new(Mutex::new(SharedBuf::new(ring_len)));
+    let mut audio = AudioController::new();
 
-    let stream = match device.default_input_config()?.sample_format()
+    if audio
+        .start(AudioMode::System, mic_shared.clone(), sys_shared.clone())
+        .is_err()
     {
-        SampleFormat::F32 => {
-            build_stream::<f32>(device, cfg.clone(), shared.clone())?
-        }
-        SampleFormat::I16 => {
-            build_stream::<i16>(device, cfg.clone(), shared.clone())?
-        }
-        SampleFormat::U16 => {
-            build_stream::<u16>(device, cfg.clone(), shared.clone())?
-        }
-        _ => anyhow::bail!("Unsupported sample format"),
-    };
-    stream.play()?;
+        audio.start(AudioMode::Mic, mic_shared.clone(), sys_shared.clone())?;
+    }
 
-    execute!(
-        out,
-        terminal::Clear(ClearType::All),
-        cursor::MoveTo(0, 0)
-    )?;
+    let mut sr_u32 = audio.info().sample_rate;
+    let mut sr = sr_u32 as f32;
 
     let window = hann(fft_size);
     let mut planner = FftPlanner::<f32>::new();
@@ -138,18 +109,50 @@ fn main() -> Result<()> {
     let mut buf = Vec::with_capacity(fft_size);
     let mut spec_pow = vec![0.0; half];
     let mut header = String::with_capacity(256);
+    let mut mix = vec![0.0f32; fft_size];
 
     loop {
         if crossterm::event::poll(Duration::ZERO)? {
-            if let crossterm::event::Event::Key(k) =
-                crossterm::event::read()?
-            {
+            if let crossterm::event::Event::Key(k) = crossterm::event::read()? {
                 use crossterm::event::KeyCode::*;
                 match k.code {
                     Char('q') => return Ok(()),
                     Char('v') => orient = Orient::Vertical,
                     Char('h') => orient = Orient::Horizontal,
+
+                    Char('u') => {
+                        show_hud = !show_hud;
+                        top_pad = if show_hud { 1 } else { 0 };
+                    }
+
+                    Char('1') => {
+                        reset_buf(&mic_shared, ring_cap);
+                        reset_buf(&sys_shared, ring_cap);
+                        audio.start(AudioMode::Mic, mic_shared.clone(), sys_shared.clone())?;
+                    }
+                    Char('2') => {
+                        reset_buf(&mic_shared, ring_cap);
+                        reset_buf(&sys_shared, ring_cap);
+                        audio.start(AudioMode::System, mic_shared.clone(), sys_shared.clone())?;
+                    }
+                    Char('3') => {
+                        reset_buf(&mic_shared, ring_cap);
+                        reset_buf(&sys_shared, ring_cap);
+                        audio.start(AudioMode::Both, mic_shared.clone(), sys_shared.clone())?;
+                    }
+                    Char('r') => {
+                        reset_buf(&mic_shared, ring_cap);
+                        reset_buf(&sys_shared, ring_cap);
+                        audio.reset(mic_shared.clone(), sys_shared.clone())?;
+                    }
                     _ => {}
+                }
+
+                let new_sr = audio.info().sample_rate;
+                if new_sr != sr_u32 {
+                    sr_u32 = new_sr;
+                    sr = sr_u32 as f32;
+                    analyzer.filters.clear();
                 }
             }
         }
@@ -168,26 +171,38 @@ fn main() -> Result<()> {
         let desired_bars = lay.bars;
 
         if analyzer.filters.len() != desired_bars {
-            analyzer.filters = build_filterbank(
-                sr,
-                fft_size,
-                desired_bars,
-                fmin,
-                fmax,
-            );
+            analyzer.filters = build_filterbank(sr, fft_size, desired_bars, fmin, fmax);
             analyzer.resize(desired_bars);
         }
 
-        let samples = if let Ok(buf) = shared.try_lock() {
-            buf.latest()
-        } else {
-            thread::sleep(Duration::from_millis(1));
-            continue;
+        let mic_samples = mic_shared.try_lock().ok().map(|b| b.latest()).unwrap_or_default();
+        let sys_samples = sys_shared.try_lock().ok().map(|b| b.latest()).unwrap_or_default();
+
+        let tail: &[f32] = match audio.mode() {
+            AudioMode::Mic => {
+                if mic_samples.len() < fft_size {
+                    continue;
+                }
+                &mic_samples[mic_samples.len() - fft_size..]
+            }
+            AudioMode::System => {
+                if sys_samples.len() < fft_size {
+                    continue;
+                }
+                &sys_samples[sys_samples.len() - fft_size..]
+            }
+            AudioMode::Both => {
+                if mic_samples.len() < fft_size || sys_samples.len() < fft_size {
+                    continue;
+                }
+                let mt = &mic_samples[mic_samples.len() - fft_size..];
+                let st = &sys_samples[sys_samples.len() - fft_size..];
+                for i in 0..fft_size {
+                    mix[i] = (mt[i] + st[i]) * 0.5;
+                }
+                &mix
+            }
         };
-        if samples.len() < fft_size {
-            continue;
-        }
-        let tail = &samples[samples.len() - fft_size..];
 
         let mut rms = 0.0;
         for &x in tail {
@@ -203,21 +218,12 @@ fn main() -> Result<()> {
         for i in 0..half {
             let re = buf[i].re;
             let im = buf[i].im;
-            spec_pow[i] = (re * re + im * im)
-                / (fft_size as f32 * fft_size as f32);
+            spec_pow[i] = (re * re + im * im) / (fft_size as f32 * fft_size as f32);
         }
 
         analyzer.update_spectrum(&spec_pow, tau_spec, dt_s);
-        let bars_target =
-            analyzer.analyze_bands(tilt_alpha, dt_s, gate_open);
-        analyzer.apply_flow_and_spring(
-            &bars_target,
-            flow_k,
-            spr_k,
-            spr_zeta,
-            dt_s,
-            gate_open,
-        );
+        let bars_target = analyzer.analyze_bands(tilt_alpha, dt_s, gate_open);
+        analyzer.apply_flow_and_spring(&bars_target, flow_k, spr_k, spr_zeta, dt_s, gate_open);
 
         queue!(
             out,
@@ -228,46 +234,24 @@ fn main() -> Result<()> {
 
         if show_hud {
             header.clear();
-            header.push_str("  lookas  |  input: ");
-            header.push_str(&name);
-            header.push_str("  |  orient: ");
-            header.push_str(match orient {
-                Orient::Vertical => "vertical",
-                Orient::Horizontal => "horizontal",
+            header.push_str("  lookas  |  audio: ");
+            header.push_str(match audio.mode() {
+                AudioMode::Mic => "mic",
+                AudioMode::System => "system",
+                AudioMode::Both => "both",
             });
-            header.push_str("  |  mode: ");
-            header.push_str(match mode {
-                Mode::Rows => "rows",
-                Mode::Columns => "columns",
-            });
-            header.push_str("  |  auto gain [");
+            header.push_str("  |  src: ");
+            header.push_str(&audio.info().label);
+            header.push_str("  |  sr: ");
             use std::fmt::Write;
-            let _ = write!(
-                header,
-                "{:.1}..{:.1} dB",
-                analyzer.db_low - 3.0,
-                analyzer.db_high + 6.0
-            );
-            header.push_str("]  |  v/h to switch, q quits\n");
+            let _ = write!(header, "{}", sr_u32);
+            header.push_str("  |  keys: 1 mic, 2 sys, 3 both, r restart, v/h, u hud, q\n");
             out.write_all(header.as_bytes())?;
         }
 
         match orient {
-            Orient::Vertical => draw_blocks_vertical(
-                &mut out,
-                &analyzer.bars_y,
-                w,
-                h,
-                &lay,
-            )?,
-            Orient::Horizontal => draw_blocks_horizontal(
-                &mut out,
-                &analyzer.bars_y,
-                w,
-                h,
-                &lay,
-                mode,
-            )?,
+            Orient::Vertical => draw_blocks_vertical(&mut out, &analyzer.bars_y, w, h, &lay)?,
+            Orient::Horizontal => draw_blocks_horizontal(&mut out, &analyzer.bars_y, w, h, &lay, mode)?,
         }
     }
 }

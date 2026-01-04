@@ -7,7 +7,10 @@ pub mod render;
 pub mod utils;
 
 pub use analyzer::SpectrumAnalyzer;
-pub use audio::{best_config_for, build_stream, pick_input_device};
+pub use audio::{
+    best_config_for, build_stream, pick_input_device,
+    AudioController, AudioMode,
+};
 pub use buffer::SharedBuf;
 pub use dsp::{
     ema_tc, hann, hz_to_mel, mel_to_hz, prepare_fft_input,

@@ -1,3 +1,5 @@
+-> get pulseaudio-utils
+
 <h1 align="center">Lookas</h1>
 
 <p align="center">
