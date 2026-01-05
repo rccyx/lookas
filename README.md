@@ -12,8 +12,7 @@
   </a>
 </p>
 
-A high-performance, terminal-based audio spectrum visualizer written in Rust.  
-Designed to be smooth, low-latency, and visually stable under audio load.
+A high-performance, terminal-based audio spectrum visualizer written in Rust.
 
 ## Overview
 

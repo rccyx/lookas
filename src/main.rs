@@ -10,10 +10,7 @@ use lookas::{
     buffer::SharedBuf,
     dsp::{hann, prepare_fft_input_inplace},
     filterbank::build_filterbank,
-    render::{
-        draw_blocks_horizontal, draw_blocks_vertical, layout_for,
-        Mode, Orient,
-    },
+    render::{draw_blocks_vertical, layout_for},
     utils::scopeguard,
 };
 use rustfft::FftPlanner;
@@ -30,18 +27,6 @@ fn get_env<T: std::str::FromStr>(name: &str, default: T) -> T {
     match env::var(name) {
         Ok(val) => val.parse::<T>().unwrap_or(default),
         Err(_) => default,
-    }
-}
-
-fn mode_from_env() -> Mode {
-    let s = env::var("LOOKAS_MODE")
-        .or_else(|_| env::var("LOOKAS_HORZ_MODE"))
-        .or_else(|_| env::var("LOOKAS_VERT_MODE"))
-        .unwrap_or_else(|_| "rows".into())
-        .to_lowercase();
-    match s.as_str() {
-        "columns" | "cols" | "c" => Mode::Columns,
-        _ => Mode::Rows,
     }
 }
 
@@ -118,15 +103,13 @@ fn main() -> Result<()> {
     let mut last = Instant::now();
     let target_dt = Duration::from_millis(target_fps_ms);
     let mut analyzer = SpectrumAnalyzer::new(half);
-    let mut orient = Orient::Vertical;
-    let mode = mode_from_env();
 
     let mut buf = Vec::with_capacity(fft_size);
     let mut spec_pow = vec![0.0; half];
     let mut mix = vec![0.0f32; fft_size];
 
     let (mut w, mut h) = terminal::size()?;
-    let mut lay = layout_for(w, h, orient, mode, top_pad);
+    let mut lay = layout_for(w, h, top_pad);
 
     loop {
         let mut layout_dirty = false;
@@ -138,15 +121,6 @@ fn main() -> Result<()> {
                 use crossterm::event::KeyCode::*;
                 match k.code {
                     Char('q') => return Ok(()),
-                    Char('v') => {
-                        orient = Orient::Vertical;
-                        layout_dirty = true;
-                    }
-                    Char('h') => {
-                        orient = Orient::Horizontal;
-                        layout_dirty = true;
-                    }
-
                     Char('1') => {
                         reset_buf(&mic_shared, ring_cap);
                         reset_buf(&sys_shared, ring_cap);
@@ -210,7 +184,7 @@ fn main() -> Result<()> {
             layout_dirty = true;
         }
         if layout_dirty {
-            lay = layout_for(w, h, orient, mode, top_pad);
+            lay = layout_for(w, h, top_pad);
         }
 
         let desired_bars = lay.bars;
@@ -301,22 +275,6 @@ fn main() -> Result<()> {
             terminal::Clear(ClearType::FromCursorDown),
         )?;
 
-        match orient {
-            Orient::Vertical => draw_blocks_vertical(
-                &mut out,
-                &analyzer.bars_y,
-                w,
-                h,
-                &lay,
-            )?,
-            Orient::Horizontal => draw_blocks_horizontal(
-                &mut out,
-                &analyzer.bars_y,
-                w,
-                h,
-                &lay,
-                mode,
-            )?,
-        }
+        draw_blocks_vertical(&mut out, &analyzer.bars_y, w, h, &lay)?;
     }
 }
