@@ -10,13 +10,22 @@ jobs:
         ubuntu:
           - ubuntu-22.04
           - ubuntu-24.04
+        toolchain:
+          - "1.70.0"
+          - stable
+          - beta
+          - nightly
+
     runs-on: ${{ matrix.ubuntu }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain
+        # toolchain input is supported on @master, not @stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
 
       - uses: Swatinem/rust-cache@v2
 
@@ -30,7 +39,7 @@ jobs:
       - name: Build release
         run: cargo build --release
 
-      - name: Smoke run (Linux only)
+      - name: Smoke run (best-effort)
         shell: bash
         env:
           RUST_BACKTRACE: 1
@@ -46,5 +55,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lookas-linux-${{ matrix.ubuntu }}-${{ github.sha }}
+          name: lookas-linux-${{ matrix.ubuntu }}-${{ matrix.toolchain }}-${{ github.sha }}
           path: target/release/lookas

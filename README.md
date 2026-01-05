@@ -56,8 +56,6 @@ By default, Lookas will attempt to start with system audio. If that fails, it fa
 
 ## Controls
 
-- `v` – Vertical orientation
-- `h` – Horizontal orientation
 - `1` – Microphone input
 - `2` – System audio (loopback / monitor)
 - `3` – Microphone + system mix
