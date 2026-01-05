@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://www.rust-lang.org">
-    <img src="https://img.shields.io/badge/Rust-1.74+-black?logo=rust&logoColor=white&style=for-the-badge" alt="Rust"/>
+    <img src="https://img.shields.io/badge/Rust-1.82+-black?logo=rust&logoColor=white&style=for-the-badge" alt="Rust"/>
   </a>
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-blue?logo=open-source-initiative&logoColor=white&style=for-the-badge" alt="License: MIT"/>
