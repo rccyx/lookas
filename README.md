@@ -1,8 +1,8 @@
 <h1 align="center">Lookas</h1>
 
 <p align="center">
-  <a href="https://www.rust-lang.org">
-    <img src="https://img.shields.io/badge/Rust-1.82+-black?logo=rust&logoColor=white&style=for-the-badge" alt="Rust"/>
+  <a href="https://www.kernel.org">
+    <img src="https://img.shields.io/badge/Platform-Linux-black?logo=linux&logoColor=white&style=for-the-badge" alt="Platform: Linux"/>
   </a>
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-blue?logo=open-source-initiative&logoColor=white&style=for-the-badge" alt="License: MIT"/>
