@@ -7,8 +7,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+        ubuntu:
+          - ubuntu-22.04
+          - ubuntu-24.04
+    runs-on: ${{ matrix.ubuntu }}
 
     steps:
       - uses: actions/checkout@v4
@@ -18,14 +20,17 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Linux audio build deps
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Install Linux audio deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            pulseaudio-utils
 
       - name: Build release
         run: cargo build --release
 
-      - name: Smoke run on all OS
+      - name: Smoke run (Linux only)
         shell: bash
         env:
           RUST_BACKTRACE: 1
@@ -33,27 +38,13 @@ jobs:
           LOOKAS_HUD: 0
         run: |
           set -euxo pipefail
-          # Prefer a fast help exit if available
-          if cargo run -q -- --help >/dev/null 2>&1; then
-            exit 0
-          fi
-          # Fallback: start briefly then kill, just to prove it launches
           cargo run -q &
           pid=$!
           sleep 3 || true
           kill $pid 2>/dev/null || true
 
-      - name: Upload artifact (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lookas-${{ runner.os }}-${{ github.sha }}
+          name: lookas-linux-${{ matrix.ubuntu }}-${{ github.sha }}
           path: target/release/lookas
-
-      - name: Upload artifact (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: lookas-${{ runner.os }}-${{ github.sha }}
-          path: target/release/lookas.exe
-
