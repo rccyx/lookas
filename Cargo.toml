@@ -2,12 +2,31 @@
 name = "lookas"
 version = "1.2.0"
 edition = "2021"
-description = "A terminal-based audio spectrum visualizer written in Rust"
-license = "MIT"
-repository = "https://github.com/rccyx/lookas"
+
+description = "High-performance terminal audio spectrum visualizer with real-time FFT, mel-scale bands, and physics-based animation"
 readme = "README.md"
-keywords = ["audio", "visualization", "terminal", "spectrum", "fft"]
-categories = ["multimedia", "visualization", "command-line-utilities"]
+license = "MIT"
+
+repository = "https://github.com/rccyx/lookas"
+homepage = "https://github.com/rccyx/lookas"
+documentation = "https://docs.rs/lookas"
+
+keywords = [
+  "audio",
+  "audio-visualizer",
+  "spectrum",
+  "fft",
+  "terminal",
+  "cli",
+  "dsp",
+  "realtime"
+]
+
+categories = [
+  "multimedia::audio",
+  "visualization",
+  "command-line-utilities"
+]
 
 [dependencies]
 anyhow = "1.0"
@@ -17,4 +36,3 @@ rustfft = "6"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
-
