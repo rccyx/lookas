@@ -11,7 +11,7 @@ jobs:
           - ubuntu-22.04
           - ubuntu-24.04
         toolchain:
-          - "1.70.0"
+          - "1.74.0"
           - stable
           - beta
           - nightly
