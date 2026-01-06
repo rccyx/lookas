@@ -42,10 +42,9 @@ Lookas will just run.
 
 > [!NOTE]
 > On very minimal Linux installs, you might be missing a couple of audio packages.
-> If Lookas fails to start or can’t capture audio, install:
+> If Lookas fails to start or can’t capture audio, run:
 >
 > ```bash
-> sudo apt update
 > sudo apt install -y libasound2-dev pulseaudio-utils
 > ```
 >
@@ -83,7 +82,7 @@ If you want to tweak how it looks or reacts to sound, it can read a single TOML 
 
 Precedence is:
 
-environment variables > config file > defaults
+Environment variables > config file > defaults
 
 ### Config file
 
@@ -97,9 +96,7 @@ You can also point to a file explicitly:
 LOOKAS_CONFIG=/path/to/lookas.toml lookas
 ```
 
-<details> <summary><b>Create the config file</b></summary>
-
-Copy-paste into your terminal:
+<details> <summary><b>To create the config file, simply copy-paste into your terminal</b></summary>
 
 ```bash
 mkdir -p ~/.configs
