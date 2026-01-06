@@ -74,7 +74,7 @@ If system audio isn’t available, it automatically falls back to microphone inp
 
 ## Configuration (Optional)
 
-You do **not** need a config file to use this.
+You do **not** need any configs to use this.
 
 It ships with sensible defaults and works out of the box.  
 Configuration exists purely for customization.
@@ -85,7 +85,7 @@ Precedence is:
 
 environment variables > config file > defaults
 
-### Config file location
+### Config file
 
 The default location is:
 
@@ -97,70 +97,129 @@ You can also point to a file explicitly:
 LOOKAS_CONFIG=/path/to/lookas.toml lookas
 ```
 
-### Creating a config file
+<details> <summary><b>Create the config file</b></summary>
 
 Copy-paste into your terminal:
 
 ```bash
 mkdir -p ~/.configs
 cat > ~/.config/lookas.toml <<'TOML'
-# Lookas configuration file @https://github.com/rccyx/lookas
+# Lookas configuration file
+# source: https://github.com/rccyx/lookas
 #
-# This file is optional.
-# If it does not exist, Lookas runs with built-in defaults.
+# This file is optional. If missing, lookas runs with built-in defaults.
 #
-# Helpful references if you want to understand the terms:
-# - FFT (Fast Fourier Transform): https://www.nti-audio.com/en/support/know-how/fast-fourier-transform-fft
-# - Windowing & spectral leakage: https://brianmcfee.net/dstbook-site/content/ch06-dft-properties/Leakage.html
-# - Mel scale (perceptual frequency spacing): https://www.fon.hum.uva.nl/praat/manual/MelSpectrogram.html
-# - Decibels (dB): https://en.wikipedia.org/wiki/Decibel
-# - Damping ratio (ζ): https://en.wikipedia.org/wiki/Damping
+# --------------------------------------------------------------------
+# Core concepts:
 #
-# Tuning tips:
-# - Feels slow or heavy → lower fft_size or raise target_fps_ms
-# - Feels twitchy → raise tau_spec or spr_zeta
-# - Always active in silence → raise gate_db (less negative)
-# - Never reacts → lower gate_db (more negative)
+# FFT = Fast Fourier Transform.
+# converts time-domain audio into frequency bins.
+# canonical paper: Cooley & Tukey (1965)
+# https://www.ams.org/mcom/1965-19-090/S0025-5718-1965-0178586-1/S0025-5718-1965-0178586-1.pdf
+#
+# τ (tau) = time constant.
+# controls how quickly a value responds vs smooths.
+# MIT OCW (control systems):
+# https://ocw.mit.edu/courses/2-004-systems-modeling-and-control-ii-fall-2007/26a1e7459044ff2652c63c7c98138e4b_lecture06.pdf
+#
+# ζ (zeta) = damping ratio for a 2nd-order system.
+# controls overshoot vs settle behavior.
+# MIT OCW:
+# https://ocw.mit.edu/courses/2-003-modeling-dynamics-and-control-i-spring-2005/57d44d83366ec969c16208c8fac3982d_notesinstalment2.pdf
+#
+# --------------------------------------------------------------------
+# Quick fixes
+#
+# bars move in silence      -> raise gate_db (less negative)
+# quiet audio not visible   -> lower gate_db (more negative)
+# jittery / nervous motion  -> raise tau_spec or spr_zeta
+# laggy / heavy feel        -> lower tau_spec or fft_size
+# high cpu usage            -> raise target_fps_ms or lower fft_size
 
-# Frequency range in Hz
-# fmin: 10.0 .. 1000.0   (typical: 20..60)
-# fmax: 1000.0 .. 24000.0 (typical: 12000..20000)
+
+# ====================================================================
+# frequency range (hz)
+# ====================================================================
+
+# minimum frequency shown (bass)
 fmin = 30.0
+
+# maximum frequency shown (treble)
 fmax = 16000.0
 
-# FFT window size (power of two)
-# Range: 512 .. 4096
-# Larger = more detail, more CPU, slightly more latency
+
+# ====================================================================
+# spectrum resolution (fft)
+# ====================================================================
+
+# fft_size = samples per FFT window (power of two)
+#
+# lower  -> faster response, less detail
+# higher -> more detail, more cpu, slightly more latency
+#
+# common values: 1024, 2048, 4096
 fft_size = 2048
 
-# Target frame time in milliseconds
-# 16 ≈ 60 FPS, 33 ≈ 30 FPS
-# Range: 8 .. 50
+
+# ====================================================================
+# frame pacing
+# ====================================================================
+
+# target time per frame (ms)
+# 16 ≈ 60 fps, 33 ≈ 30 fps
 target_fps_ms = 16
 
-# Spectrum smoothing time constant (seconds)
-# Range: 0.01 .. 0.20
+
+# ====================================================================
+# spectrum smoothing (τ)
+# ====================================================================
+
+# tau_spec = spectrum smoothing time constant (seconds)
+#
+# lower  -> snappier, more jitter
+# higher -> smoother, heavier feel
 tau_spec = 0.06
 
-# Noise gate threshold (dB)
-# Range: -80.0 .. -30.0
+
+# ====================================================================
+# noise gate
+# ====================================================================
+
+# gate_db = silence threshold
+#
+# less negative -> stricter silence
+# more negative -> more sensitive
 gate_db = -55.0
 
-# Frequency-response tilt (0..1)
+
+# ====================================================================
+# frequency balance + motion coupling
+# ====================================================================
+
+# tilt_alpha = frequency balance compensation (0..1)
 tilt_alpha = 0.30
 
-# Horizontal energy diffusion (0..1)
+# flow_k = sideways energy diffusion (0..1)
 flow_k = 0.18
 
-# Spring stiffness
-# Range: 10.0 .. 200.0
+
+# ====================================================================
+# spring-damper animation (k, ζ)
+# ====================================================================
+
+# spr_k = spring stiffness
 spr_k = 60.0
 
-# Spring damping ratio ζ
-# Range: 0.1 .. 2.0
+# spr_zeta = damping ratio ζ
+#
+# < 1.0  -> bouncy
+# = 1.0  -> fast settle, no overshoot
+# > 1.0  -> heavy / slow settle
 spr_zeta = 1.0
 TOML
 ```
+
+</details>
 
 ### Environment variable overrides
 
