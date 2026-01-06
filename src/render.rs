@@ -1,5 +1,4 @@
-use crossterm::{cursor, queue};
-use std::io::{Stdout, Write};
+use std::io::Write;
 
 // vertical partials from bottom: empty -> full
 const VBLOCKS: [char; 9] =
@@ -42,8 +41,8 @@ fn v_partial(frac: f32) -> char {
 
 // write n spaces without allocating a vec
 #[inline]
-fn write_spaces(
-    out: &mut Stdout,
+fn write_spaces<W: Write>(
+    out: &mut W,
     mut n: usize,
 ) -> std::io::Result<()> {
     const BLANK: [u8; 64] = [b' '; 64];
@@ -58,8 +57,8 @@ fn write_spaces(
 }
 
 #[inline]
-pub fn draw_blocks_vertical(
-    out: &mut Stdout,
+pub fn draw_blocks_vertical<W: Write>(
+    out: &mut W,
     bars: &[f32],
     w: u16,
     h: u16,
@@ -84,10 +83,9 @@ pub fn draw_blocks_vertical(
         fracs[i] = height - fulls[i] as f32;
     }
 
-    // bottom to top
-    for row in 0..rows {
-        let y = h - 1 - row as u16;
-        queue!(out, cursor::MoveTo(0, y))?;
+    // top to bottom (but row logic stays bottom-based)
+    for y in 0..rows {
+        let row = rows - 1 - y;
         write_spaces(out, lay.left_pad as usize)?;
 
         for i in 0..n {
@@ -112,8 +110,22 @@ pub fn draw_blocks_vertical(
             write_spaces(out, cols - used)?;
         }
         write_spaces(out, lay.right_pad as usize)?;
+
+        if y + 1 < rows {
+            out.write_all(b"\r\n")?;
+        }
     }
 
-    out.flush()?;
     Ok(())
+}
+
+#[inline]
+pub fn render_blocks_vertical_frame(
+    bars: &[f32],
+    w: u16,
+    h: u16,
+    lay: &Layout,
+    frame: &mut Vec<u8>,
+) -> std::io::Result<()> {
+    draw_blocks_vertical(frame, bars, w, h, lay)
 }

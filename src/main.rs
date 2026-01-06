@@ -3,6 +3,7 @@ use crossterm::{
     cursor, execute, queue,
     style::{Color, SetForegroundColor},
     terminal::{self, ClearType},
+    event,
 };
 use lookas::{
     analyzer::{FlowSpringParams, SpectrumAnalyzer},
@@ -10,13 +11,13 @@ use lookas::{
     buffer::SharedBuf,
     dsp::{hann, prepare_fft_input_inplace},
     filterbank::build_filterbank,
-    render::{draw_blocks_vertical, layout_for},
+    render::{render_blocks_vertical_frame, layout_for},
     utils::scopeguard,
 };
 use rustfft::FftPlanner;
 use std::{
     env,
-    io::stdout,
+    io::{stdout, Write},
     sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
@@ -50,7 +51,7 @@ fn main() -> Result<()> {
 
     let top_pad: u16 = 0;
 
-    let mut out = stdout();
+    let mut out = std::io::BufWriter::with_capacity(1024 * 1024, stdout());
     terminal::enable_raw_mode()?;
     execute!(
         out,
@@ -59,6 +60,7 @@ fn main() -> Result<()> {
         terminal::Clear(ClearType::All),
         SetForegroundColor(Color::White),
     )?;
+    out.flush()?;
 
     let _cleanup = scopeguard::guard((), |_| {
         let mut out = stdout();
@@ -110,61 +112,68 @@ fn main() -> Result<()> {
 
     let (mut w, mut h) = terminal::size()?;
     let mut lay = layout_for(w, h, top_pad);
+    let mut frame: Vec<u8> = Vec::with_capacity((w as usize * h as usize * 4).max(64 * 1024));
 
     loop {
         let mut layout_dirty = false;
 
-        if crossterm::event::poll(Duration::ZERO)? {
-            if let crossterm::event::Event::Key(k) =
-                crossterm::event::read()?
-            {
-                use crossterm::event::KeyCode::*;
-                match k.code {
-                    Char('q') => return Ok(()),
-                    Char('1') => {
-                        reset_buf(&mic_shared, ring_cap);
-                        reset_buf(&sys_shared, ring_cap);
-                        audio.start(
-                            AudioMode::Mic,
-                            mic_shared.clone(),
-                            sys_shared.clone(),
-                        )?;
-                    }
-                    Char('2') => {
-                        reset_buf(&mic_shared, ring_cap);
-                        reset_buf(&sys_shared, ring_cap);
-                        audio.start(
-                            AudioMode::System,
-                            mic_shared.clone(),
-                            sys_shared.clone(),
-                        )?;
-                    }
-                    Char('3') => {
-                        reset_buf(&mic_shared, ring_cap);
-                        reset_buf(&sys_shared, ring_cap);
-                        audio.start(
-                            AudioMode::Both,
-                            mic_shared.clone(),
-                            sys_shared.clone(),
-                        )?;
-                    }
-                    Char('r') => {
-                        reset_buf(&mic_shared, ring_cap);
-                        reset_buf(&sys_shared, ring_cap);
-                        audio.reset(
-                            mic_shared.clone(),
-                            sys_shared.clone(),
-                        )?;
-                    }
-                    _ => {}
+        if event::poll(Duration::ZERO)? {
+            match event::read()? {
+                event::Event::Resize(nw, nh) => {
+                    w = nw;
+                    h = nh;
+                    layout_dirty = true;
                 }
+                event::Event::Key(k) => {
+                    use crossterm::event::KeyCode::*;
+                    match k.code {
+                        Char('q') => return Ok(()),
+                        Char('1') => {
+                            reset_buf(&mic_shared, ring_cap);
+                            reset_buf(&sys_shared, ring_cap);
+                            audio.start(
+                                AudioMode::Mic,
+                                mic_shared.clone(),
+                                sys_shared.clone(),
+                            )?;
+                        }
+                        Char('2') => {
+                            reset_buf(&mic_shared, ring_cap);
+                            reset_buf(&sys_shared, ring_cap);
+                            audio.start(
+                                AudioMode::System,
+                                mic_shared.clone(),
+                                sys_shared.clone(),
+                            )?;
+                        }
+                        Char('3') => {
+                            reset_buf(&mic_shared, ring_cap);
+                            reset_buf(&sys_shared, ring_cap);
+                            audio.start(
+                                AudioMode::Both,
+                                mic_shared.clone(),
+                                sys_shared.clone(),
+                            )?;
+                        }
+                        Char('r') => {
+                            reset_buf(&mic_shared, ring_cap);
+                            reset_buf(&sys_shared, ring_cap);
+                            audio.reset(
+                                mic_shared.clone(),
+                                sys_shared.clone(),
+                            )?;
+                        }
+                        _ => {}
+                    }
 
-                let new_sr = audio.info().sample_rate;
-                if new_sr != sr_u32 {
-                    sr_u32 = new_sr;
-                    sr = sr_u32 as f32;
-                    analyzer.filters.clear();
+                    let new_sr = audio.info().sample_rate;
+                    if new_sr != sr_u32 {
+                        sr_u32 = new_sr;
+                        sr = sr_u32 as f32;
+                        analyzer.filters.clear();
+                    }
                 }
+                _ => {}
             }
         }
 
@@ -177,14 +186,13 @@ fn main() -> Result<()> {
         let dt_s = now.duration_since(last).as_secs_f32();
         last = now;
 
-        let (nw, nh) = terminal::size()?;
-        if nw != w || nh != h {
-            w = nw;
-            h = nh;
-            layout_dirty = true;
-        }
         if layout_dirty {
             lay = layout_for(w, h, top_pad);
+            queue!(
+                out,
+                terminal::Clear(ClearType::All),
+            )?;
+            out.flush()?;
         }
 
         let desired_bars = lay.bars;
@@ -271,12 +279,10 @@ fn main() -> Result<()> {
             gate_open,
         );
 
-        queue!(
-            out,
-            cursor::MoveTo(0, 0),
-            terminal::Clear(ClearType::FromCursorDown),
-        )?;
-
-        draw_blocks_vertical(&mut out, &analyzer.bars_y, w, h, &lay)?;
+        queue!(out, cursor::MoveTo(0, top_pad))?;
+        frame.clear();
+        render_blocks_vertical_frame(&analyzer.bars_y, w, h, &lay, &mut frame)?;
+        out.write_all(&frame)?;
+        out.flush()?;
     }
 }
