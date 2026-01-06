@@ -20,4 +20,7 @@ jobs:
       - name: Install ALSA development libraries
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
-      - run: cargo publish --token ${{ secrets.CRATES_TOKEN }}
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
+        run: cargo publish
