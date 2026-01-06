@@ -15,11 +15,13 @@
 A high-performance, terminal-based audio spectrum visualizer written in Rust.
 
 ## Overview
+
 ### Integrated
 
 <img width="1920" height="1079" alt="image" src="https://github.com/user-attachments/assets/494c8b20-a512-4273-941b-89095e35e902" />
 
 ### Immersive
+
 <img width="1913" height="1080" alt="image" src="https://github.com/user-attachments/assets/89f5cac5-e6c5-48bb-a029-d29172765200" />
 
 ## What It Does
