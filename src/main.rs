@@ -5,7 +5,7 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 use lookas::{
-    analyzer::SpectrumAnalyzer,
+    analyzer::{FlowSpringParams, SpectrumAnalyzer},
     audio::{AudioController, AudioMode},
     buffer::SharedBuf,
     dsp::{hann, prepare_fft_input_inplace},
@@ -262,9 +262,11 @@ fn main() -> Result<()> {
             analyzer.analyze_bands(tilt_alpha, dt_s, gate_open);
         analyzer.apply_flow_and_spring(
             &bars_target,
-            flow_k,
-            spr_k,
-            spr_zeta,
+            &FlowSpringParams {
+                flow_k,
+                spr_k,
+                spr_zeta,
+            },
             dt_s,
             gate_open,
         );

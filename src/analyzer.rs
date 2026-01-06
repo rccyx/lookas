@@ -11,6 +11,12 @@ pub struct SpectrumAnalyzer {
     pub db_high: f32,
 }
 
+pub struct FlowSpringParams {
+    pub flow_k: f32,
+    pub spr_k: f32,
+    pub spr_zeta: f32,
+}
+
 impl SpectrumAnalyzer {
     pub fn new(half_fft_size: usize) -> Self {
         Self {
@@ -126,9 +132,7 @@ impl SpectrumAnalyzer {
     pub fn apply_flow_and_spring(
         &mut self,
         bars_target: &[f32],
-        flow_k: f32,
-        spr_k: f32,
-        spr_zeta: f32,
+        params: &FlowSpringParams,
         dt_s: f32,
         gate_open: bool,
     ) {
@@ -162,14 +166,15 @@ impl SpectrumAnalyzer {
             } else {
                 self.bars_y[i]
             };
-            let flow = flow_k * (left + right - 2.0 * self.bars_y[i]);
+            let flow =
+                params.flow_k * (left + right - 2.0 * self.bars_y[i]);
             flowed[i] = (bars_target[i] + flow).clamp(0.0, 1.0);
         }
 
-        let c = 2.0 * spr_k.sqrt() * spr_zeta;
+        let c = 2.0 * params.spr_k.sqrt() * params.spr_zeta;
 
         for (i, &flowed_val) in flowed.iter().enumerate().take(n) {
-            let a = spr_k * (flowed_val - self.bars_y[i])
+            let a = params.spr_k * (flowed_val - self.bars_y[i])
                 - c * self.bars_v[i];
             self.bars_v[i] += a * dt_s;
             self.bars_y[i] = (self.bars_y[i] + self.bars_v[i] * dt_s)
