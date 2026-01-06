@@ -15,16 +15,6 @@ keywords = [
   "audio",
   "audio-visualizer",
   "spectrum-analyzer",
-  "fft",
-  "mel-scale",
-  "terminal",
-  "tui",
-  "cli",
-  "dsp",
-  "realtime",
-  "rust",
-  "cpal",
-  "rustfft",
   "music",
   "sound"
 ]
