@@ -1,6 +1,7 @@
 pub mod analyzer;
 pub mod audio;
 pub mod buffer;
+pub mod config;
 pub mod dsp;
 pub mod filterbank;
 pub mod render;

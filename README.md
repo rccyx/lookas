@@ -24,35 +24,45 @@ Lookas captures **microphone input, system audio, or both**, converts the signal
 
 Adaptive gain control and noise gating keep the display clean. A spring-damper animation model gives the bars weight and continuity instead of raw jitter. Rendering is optimized for terminal throughput and stable frame pacing rather than flashy redraw tricks.
 
-The result is a visualizer that feels connected to the sound, not a noisy oscilloscope clone.
+The result is a visualizer that feels naturally connected to the sound, not a noisy oscilloscope clone.
 
 ## Installation
+
+Simply run:
 
 ```bash
 cargo install lookas
 ```
 
-### System Audio (Linux)
+**You usually don't need to install anything else.**
 
-For system audio capture, Lookas relies on PulseAudio / PipeWire utilities.
+If your system already has working audio (microphone or system sound),
 
-If not installed already, run:
+Lookas will just run.
 
-```bash
-sudo apt install pulseaudio-utils
-```
-
-This works on both PulseAudio and PipeWire setups via `pipewire-pulse`.
+> [!NOTE]
+> On very minimal Linux installs, you might be missing a couple of audio packages.
+> If Lookas fails to start or can’t capture audio, install:
+>
+> ```bash
+> sudo apt update
+> sudo apt install -y libasound2-dev pulseaudio-utils
+> ```
+>
+> This works for both PulseAudio and PipeWire systems (via `pipewire-pulse`).
 
 ## Basic Usage
 
-Run with defaults:
+Lookas is **zero-config by default**.
+
+Just run:
 
 ```bash
 lookas
 ```
 
-By default, Lookas will attempt to start with system audio. If that fails, it falls back to microphone input.
+It will attempt to start with system audio.  
+If system audio isn’t available, it automatically falls back to microphone input.
 
 ## Controls
 
@@ -62,65 +72,106 @@ By default, Lookas will attempt to start with system audio. If that fails, it fa
 - `r` – Restart audio pipeline
 - `q` – Quit
 
-## Configuration
+## Configuration (Optional)
 
-Lookas is configured entirely through environment variables.
+You do **not** need a config file to use this.
 
-### Frequency & Resolution
+It ships with sensible defaults and works out of the box.  
+Configuration exists purely for customization.
 
-| Variable          | Description                    | Default | Range            |
-| ----------------- | ------------------------------ | ------- | ---------------- |
-| `LOOKAS_FMIN`     | Minimum frequency (Hz)         | 30.0    | 10.0 – 1000.0    |
-| `LOOKAS_FMAX`     | Maximum frequency (Hz)         | 16000.0 | 1000.0 – 24000.0 |
-| `LOOKAS_FFT_SIZE` | FFT window size (power of two) | 2048    | 512 – 4096       |
+If you want to tweak how it looks or reacts to sound, it can read a single TOML file and then apply environment variables on top.
 
-### Performance & Layout
+Precedence is:
 
-| Variable               | Description            | Default | Range             |
-| ---------------------- | ---------------------- | ------- | ----------------- |
-| `LOOKAS_TARGET_FPS_MS` | Target frame time (ms) | 16      | 8 – 50            |
-| `LOOKAS_MODE`          | Horizontal layout mode | "rows"  | "rows", "columns" |
+environment variables > config file > defaults
 
-### Audio Processing
+### Config file location
 
-| Variable            | Description                 | Default | Range         |
-| ------------------- | --------------------------- | ------- | ------------- |
-| `LOOKAS_TAU_SPEC`   | Spectrum smoothing constant | 0.06    | 0.01 – 0.20   |
-| `LOOKAS_GATE_DB`    | Noise gate threshold (dB)   | -55.0   | -80.0 – -30.0 |
-| `LOOKAS_TILT_ALPHA` | Frequency response tilt     | 0.30    | 0.0 – 1.0     |
+The default location is:
 
-### Animation Physics
+- `~/.config/lookas.toml`
 
-| Variable          | Description                 | Default | Range        |
-| ----------------- | --------------------------- | ------- | ------------ |
-| `LOOKAS_FLOW_K`   | Horizontal energy diffusion | 0.18    | 0.0 – 1.0    |
-| `LOOKAS_SPR_K`    | Spring stiffness            | 60.0    | 10.0 – 200.0 |
-| `LOOKAS_SPR_ZETA` | Spring damping              | 1.0     | 0.1 – 2.0    |
-
-## Example Configurations
-
-High frequency resolution:
+You can also point to a file explicitly:
 
 ```bash
-LOOKAS_FFT_SIZE=4096 LOOKAS_FMIN=20 LOOKAS_FMAX=20000 lookas
+LOOKAS_CONFIG=/path/to/lookas.toml lookas
 ```
 
-Lower CPU usage:
+### Creating a config file
+
+Copy-paste into your terminal:
 
 ```bash
-LOOKAS_TARGET_FPS_MS=33 LOOKAS_FFT_SIZE=1024 lookas
+mkdir -p ~/.configs
+cat > ~/.config/lookas.toml <<'TOML'
+# Lookas configuration file @https://github.com/rccyx/lookas
+#
+# This file is optional.
+# If it does not exist, Lookas runs with built-in defaults.
+#
+# Helpful references if you want to understand the terms:
+# - FFT (Fast Fourier Transform): https://www.nti-audio.com/en/support/know-how/fast-fourier-transform-fft
+# - Windowing & spectral leakage: https://brianmcfee.net/dstbook-site/content/ch06-dft-properties/Leakage.html
+# - Mel scale (perceptual frequency spacing): https://www.fon.hum.uva.nl/praat/manual/MelSpectrogram.html
+# - Decibels (dB): https://en.wikipedia.org/wiki/Decibel
+# - Damping ratio (ζ): https://en.wikipedia.org/wiki/Damping
+#
+# Tuning tips:
+# - Feels slow or heavy → lower fft_size or raise target_fps_ms
+# - Feels twitchy → raise tau_spec or spr_zeta
+# - Always active in silence → raise gate_db (less negative)
+# - Never reacts → lower gate_db (more negative)
+
+# Frequency range in Hz
+# fmin: 10.0 .. 1000.0   (typical: 20..60)
+# fmax: 1000.0 .. 24000.0 (typical: 12000..20000)
+fmin = 30.0
+fmax = 16000.0
+
+# FFT window size (power of two)
+# Range: 512 .. 4096
+# Larger = more detail, more CPU, slightly more latency
+fft_size = 2048
+
+# Target frame time in milliseconds
+# 16 ≈ 60 FPS, 33 ≈ 30 FPS
+# Range: 8 .. 50
+target_fps_ms = 16
+
+# Spectrum smoothing time constant (seconds)
+# Range: 0.01 .. 0.20
+tau_spec = 0.06
+
+# Noise gate threshold (dB)
+# Range: -80.0 .. -30.0
+gate_db = -55.0
+
+# Frequency-response tilt (0..1)
+tilt_alpha = 0.30
+
+# Horizontal energy diffusion (0..1)
+flow_k = 0.18
+
+# Spring stiffness
+# Range: 10.0 .. 200.0
+spr_k = 60.0
+
+# Spring damping ratio ζ
+# Range: 0.1 .. 2.0
+spr_zeta = 1.0
+TOML
 ```
 
-Bass-focused music:
+### Environment variable overrides
+
+Every config value can be overridden temporarily using environment variables.
+
+Examples:
 
 ```bash
-LOOKAS_FMIN=20 LOOKAS_FMAX=8000 LOOKAS_TILT_ALPHA=0.1 lookas
-```
-
-Smoother classical dynamics:
-
-```bash
-LOOKAS_FMIN=40 LOOKAS_FMAX=12000 LOOKAS_TAU_SPEC=0.12 lookas
+LOOKAS_FFT_SIZE=4096 lookas
+LOOKAS_GATE_DB=-60 lookas
+LOOKAS_TARGET_FPS_MS=33 lookas
 ```
 
 ## How It Works
@@ -131,7 +182,7 @@ Audio is captured from the microphone, system loopback, or both. The signal is w
 
 Dynamic range is managed continuously using percentile tracking instead of fixed scaling. A noise gate suppresses background hiss, while frequency tilt prevents low or high bands from dominating the display.
 
-Animation is driven by a spring-damper model rather than raw amplitude changes. Energy diffuses laterally between neighboring bands, producing motion that feels fluid instead of twitchy. All hot-path operations are allocation-free, cache-friendly, and designed to maintain consistent frame pacing.
+Animation is driven by a spring-damper model rather than raw amplitude changes. Energy diffuses laterally between neighboring bands, producing motion that feels fluid instead of twitchy.
 
 Rendering uses dense Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
 

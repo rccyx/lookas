@@ -1,35 +1,26 @@
 use anyhow::Result;
 use crossterm::{
-    cursor, execute, queue,
+    cursor, event, execute, queue,
     style::{Color, SetForegroundColor},
     terminal::{self, ClearType},
-    event,
 };
 use lookas::{
     analyzer::{FlowSpringParams, SpectrumAnalyzer},
     audio::{AudioController, AudioMode},
     buffer::SharedBuf,
+    config::Config,
     dsp::{hann, prepare_fft_input_inplace},
     filterbank::build_filterbank,
-    render::{render_blocks_vertical_frame, layout_for},
+    render::{layout_for, render_blocks_vertical_frame},
     utils::scopeguard,
 };
 use rustfft::FftPlanner;
 use std::{
-    env,
     io::{stdout, Write},
     sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
-
-#[inline]
-fn get_env<T: std::str::FromStr>(name: &str, default: T) -> T {
-    match env::var(name) {
-        Ok(val) => val.parse::<T>().unwrap_or(default),
-        Err(_) => default,
-    }
-}
 
 fn reset_buf(shared: &Arc<Mutex<SharedBuf>>, cap: usize) {
     if let Ok(mut b) = shared.lock() {
@@ -38,20 +29,23 @@ fn reset_buf(shared: &Arc<Mutex<SharedBuf>>, cap: usize) {
 }
 
 fn main() -> Result<()> {
-    let fmin: f32 = get_env("LOOKAS_FMIN", 30.0);
-    let fmax: f32 = get_env("LOOKAS_FMAX", 16_000.0);
-    let target_fps_ms: u64 = get_env("LOOKAS_TARGET_FPS_MS", 16);
-    let fft_size: usize = get_env("LOOKAS_FFT_SIZE", 2048);
-    let tau_spec: f32 = get_env("LOOKAS_TAU_SPEC", 0.06);
-    let gate_db: f32 = get_env("LOOKAS_GATE_DB", -55.0);
-    let tilt_alpha: f32 = get_env("LOOKAS_TILT_ALPHA", 0.30);
-    let flow_k: f32 = get_env("LOOKAS_FLOW_K", 0.18);
-    let spr_k: f32 = get_env("LOOKAS_SPR_K", 60.0);
-    let spr_zeta: f32 = get_env("LOOKAS_SPR_ZETA", 1.0);
+    let cfg = Config::load()?;
+
+    let fmin: f32 = cfg.fmin;
+    let fmax: f32 = cfg.fmax;
+    let target_fps_ms: u64 = cfg.target_fps_ms;
+    let fft_size: usize = cfg.fft_size;
+    let tau_spec: f32 = cfg.tau_spec;
+    let gate_db: f32 = cfg.gate_db;
+    let tilt_alpha: f32 = cfg.tilt_alpha;
+    let flow_k: f32 = cfg.flow_k;
+    let spr_k: f32 = cfg.spr_k;
+    let spr_zeta: f32 = cfg.spr_zeta;
 
     let top_pad: u16 = 0;
 
-    let mut out = std::io::BufWriter::with_capacity(1024 * 1024, stdout());
+    let mut out =
+        std::io::BufWriter::with_capacity(1024 * 1024, stdout());
     terminal::enable_raw_mode()?;
     execute!(
         out,
@@ -112,7 +106,9 @@ fn main() -> Result<()> {
 
     let (mut w, mut h) = terminal::size()?;
     let mut lay = layout_for(w, h, top_pad);
-    let mut frame: Vec<u8> = Vec::with_capacity((w as usize * h as usize * 4).max(64 * 1024));
+    let mut frame: Vec<u8> = Vec::with_capacity(
+        (w as usize * h as usize * 4).max(64 * 1024),
+    );
 
     loop {
         let mut layout_dirty = false;
@@ -188,10 +184,7 @@ fn main() -> Result<()> {
 
         if layout_dirty {
             lay = layout_for(w, h, top_pad);
-            queue!(
-                out,
-                terminal::Clear(ClearType::All),
-            )?;
+            queue!(out, terminal::Clear(ClearType::All),)?;
             out.flush()?;
         }
 
@@ -281,7 +274,13 @@ fn main() -> Result<()> {
 
         queue!(out, cursor::MoveTo(0, top_pad))?;
         frame.clear();
-        render_blocks_vertical_frame(&analyzer.bars_y, w, h, &lay, &mut frame)?;
+        render_blocks_vertical_frame(
+            &analyzer.bars_y,
+            w,
+            h,
+            &lay,
+            &mut frame,
+        )?;
         out.write_all(&frame)?;
         out.flush()?;
     }
