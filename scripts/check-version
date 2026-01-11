@@ -4,28 +4,28 @@ set -euo pipefail
 echo "[check-version] extracting crate metadata"
 
 meta="$(cargo metadata --no-deps --format-version 1)"
-
 name="$(echo "$meta" | jq -r '.packages[0].name')"
 version="$(echo "$meta" | jq -r '.packages[0].version')"
 
 echo "[check-version] crate: ${name}"
 echo "[check-version] version: ${version}"
 
-url="https://crates.io/api/v1/crates/${name}/${version}"
+echo "[check-version] running cargo publish --dry-run"
 
-echo "[check-version] querying crates.io"
-echo "[check-version] GET ${url}"
+log="$(mktemp)"
 
-status="$(curl -s -o /dev/null -w "%{http_code}" "$url")"
-
-echo "[check-version] crates.io response: HTTP ${status}"
-
-if [ "$status" = "200" ]; then
-  echo "[check-version] version already published"
-  echo "[check-version] publish? no"
-  echo "publish=no" >> "$GITHUB_OUTPUT"
-else
-  echo "[check-version] version not found"
+if cargo publish --dry-run >"$log" 2>&1; then
+  echo "[check-version] dry-run succeeded"
   echo "[check-version] publish? yes"
   echo "publish=yes" >> "$GITHUB_OUTPUT"
+else
+  if grep -q "already exists" "$log"; then
+    echo "[check-version] version already exists on crates.io"
+    echo "[check-version] publish? no"
+    echo "publish=no" >> "$GITHUB_OUTPUT"
+  else
+    echo "[check-version] unexpected publish failure"
+    cat "$log"
+    exit 1
+  fi
 fi
