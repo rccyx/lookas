@@ -20,6 +20,7 @@ jobs:
   format:
     uses: ./.github/workflows/on-workflow-call-format.yml
     secrets: inherit
+
   lint:
     uses: ./.github/workflows/on-workflow-call-lint.yml
     secrets: inherit
@@ -29,18 +30,12 @@ jobs:
     secrets: inherit
 
   check:
-    runs-on: ubuntu-latest
     needs: [format, lint, build]
-    outputs:
-      publish: ${{ steps.check.outputs.publish }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check crates.io version
-        id: check
-        run: bash ./scripts/check-version
+    uses: ./.github/workflows/on-workflow-call-check.yml
+    secrets: inherit
 
   release:
-    if: needs.check.outputs.publish == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: needs.check.outputs.publish == 'yes' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [check]
     uses: ./.github/workflows/on-workflow-call-release.yml
     secrets: inherit

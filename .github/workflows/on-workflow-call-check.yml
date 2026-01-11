@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  workflow_call:
+    outputs:
+      publish:
+        description: "whether this version should be published (yes|no)"
+        value: ${{ jobs.check.outputs.publish }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Check crates.io version
+        id: check
+        run: bash ./scripts/check-version
