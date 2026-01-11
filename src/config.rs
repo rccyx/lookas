@@ -24,7 +24,7 @@ impl Config {
             target_fps_ms: 16,
             fft_size: 2048,
             tau_spec: 0.06,
-            gate_db: -55.0,
+            gate_db: -65.0,
             tilt_alpha: 0.30,
             flow_k: 0.18,
             spr_k: 60.0,
@@ -35,7 +35,6 @@ impl Config {
     pub fn load() -> Result<Self> {
         let mut cfg = Self::defaults();
 
-        // file first, env second.
         if let Some(file_cfg) = load_file_config()? {
             cfg.apply_file(file_cfg);
         }
@@ -113,7 +112,6 @@ impl Config {
     }
 
     fn sanitize(&mut self) {
-        // clamp instead of failing
         self.fmin = self.fmin.clamp(10.0, 1000.0);
         self.fmax = self.fmax.clamp(1000.0, 24_000.0);
 

@@ -1,18 +1,16 @@
 use std::io::Write;
 
-// vertical partials from bottom: empty -> full
 const VBLOCKS: [char; 9] =
     [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
-// bar geometry
 const BAR_W: usize = 2;
 const GAP_W: usize = 1;
 
 pub struct Layout {
-    pub bars: usize, // analyzer resolution (bands)
+    pub bars: usize,
     pub left_pad: u16,
     pub right_pad: u16,
-    pub top_pad: u16, // rows reserved at top (0 when hud off)
+    pub top_pad: u16,
 }
 
 #[inline]

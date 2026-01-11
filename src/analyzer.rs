@@ -137,17 +137,19 @@ impl SpectrumAnalyzer {
         gate_open: bool,
     ) {
         let n = bars_target.len();
+        if n == 0 {
+            return;
+        }
 
-        // If gate is closed, rapidly decay all bars to zero
         if !gate_open {
-            let decay_factor = (-20.0 * dt_s).exp(); // Very fast decay when no audio
+            let tau_silence = 0.22f32; // smooth fade, not a trapdoor
+            let a = (-dt_s / tau_silence).exp();
+
             for i in 0..n {
-                self.bars_y[i] *= decay_factor;
-                self.bars_v[i] *= decay_factor;
-                // Set to zero if very small to avoid floating point artifacts
+                self.bars_y[i] *= a;
+                self.bars_v[i] = 0.0;
                 if self.bars_y[i] < 0.001 {
                     self.bars_y[i] = 0.0;
-                    self.bars_v[i] = 0.0;
                 }
             }
             return;

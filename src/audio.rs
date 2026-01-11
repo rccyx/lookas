@@ -247,8 +247,6 @@ fn pulse_sources() -> Result<Vec<SourceInfo>> {
 
     for line in s.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        // typical:
-        // id name driver fmt 4ch 48000Hz STATE
         if parts.len() < 7 {
             continue;
         }
@@ -293,40 +291,39 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
         anyhow::bail!("LOOKAS_SYS_DEVICE was set but no pulse source matched it");
     }
 
-    // prefer a running monitor, because default sink can be wrong on multi-device setups
-    let mut best: Option<SourceInfo> = None;
-    let mut best_score: i32 = -1;
-
-    for s in sources.iter().filter(|s| s.name.contains(".monitor")) {
-        let mut score = 0;
-        if s.state == "RUNNING" {
-            score += 200;
-        }
-        score += 100;
-        if score > best_score {
-            best_score = score;
-            best = Some(s.clone());
-        }
+    // 1, if anything is RUNNING, pick a RUNNING monitor.
+    if let Some(hit) = sources
+        .iter()
+        .filter(|s| s.name.contains(".monitor"))
+        .find(|s| s.state == "RUNNING")
+    {
+        return Ok(hit.clone());
     }
 
-    if let Some(hit) = best {
-        return Ok(hit);
-    }
-
-    // fallback: default sink monitor if no monitor was picked above
+    // 2, nothing RUNNING, prefer default sink monitor.
     if let Ok(sink) = pactl(&["get-default-sink"]) {
         if !sink.is_empty() {
             let mon = format!("{}.monitor", sink);
-            let sources = pulse_sources()?;
-            if let Some(hit) =
-                sources.into_iter().find(|s| s.name == mon)
+            if let Some(hit) = sources.iter().find(|s| s.name == mon)
             {
-                return Ok(hit);
+                return Ok(hit.clone());
             }
         }
     }
 
+    // 3, last resort, any monitor.
+    if let Some(hit) =
+        sources.iter().find(|s| s.name.contains(".monitor"))
+    {
+        return Ok(hit.clone());
+    }
+
     anyhow::bail!("no monitor source found (no .monitor sources in pactl list short sources)")
+}
+
+#[cfg(target_os = "linux")]
+fn env_u32(name: &str) -> Option<u32> {
+    std::env::var(name).ok().and_then(|v| v.parse::<u32>().ok())
 }
 
 #[cfg(target_os = "linux")]
@@ -341,11 +338,17 @@ fn start_system(
     let channels = src.channels.max(1);
     let use_rate = src.rate.clamp(8_000, 192_000).max(rate);
 
+    // low-latency defaults
+    let latency_ms = env_u32("LOOKAS_SYS_LATENCY_MS").unwrap_or(15);
+    let process_ms = env_u32("LOOKAS_SYS_PROCESS_MS").unwrap_or(5);
+
     let mut child = Command::new("parec")
         .args([
             "--device",
             &src.name,
             "--format=float32le",
+            &format!("--latency-msec={}", latency_ms),
+            &format!("--process-time-msec={}", process_ms),
             "--rate",
             &use_rate.to_string(),
             "--channels",
@@ -407,17 +410,12 @@ fn start_system(
     Ok(SystemHandle {
         child,
         join: Some(join),
-        label: format!("system:{} ({}ch)", src.name, channels),
+        label: format!(
+            "system:{} ({}ch, lat={}ms proc={}ms)",
+            src.name, channels, latency_ms, process_ms
+        ),
         sample_rate: use_rate,
     })
-}
-
-#[cfg(not(target_os = "linux"))]
-fn start_system(
-    _: Arc<Mutex<SharedBuf>>,
-    _: u32,
-) -> Result<SystemHandle> {
-    anyhow::bail!("system capture is linux-only in this build")
 }
 
 impl Drop for SystemHandle {

@@ -9,7 +9,7 @@ use lookas::{
     audio::{AudioController, AudioMode},
     buffer::SharedBuf,
     config::Config,
-    dsp::{hann, prepare_fft_input_inplace},
+    dsp::{ema_tc, hann, prepare_fft_input_inplace},
     filterbank::build_filterbank,
     render::{layout_for, render_blocks_vertical_frame},
     utils::scopeguard,
@@ -102,13 +102,29 @@ fn main() -> Result<()> {
 
     let mut buf = Vec::with_capacity(fft_size);
     let mut spec_pow = vec![0.0; half];
-    let mut mix = vec![0.0f32; fft_size];
+
+    let mut mic_tail: Vec<f32> = Vec::with_capacity(fft_size);
+    let mut sys_tail: Vec<f32> = Vec::with_capacity(fft_size);
+    let mut mix: Vec<f32> = vec![0.0f32; fft_size];
 
     let (mut w, mut h) = terminal::size()?;
     let mut lay = layout_for(w, h, top_pad);
     let mut frame: Vec<u8> = Vec::with_capacity(
         (w as usize * h as usize * 4).max(64 * 1024),
     );
+
+    // gate smoothing + hysteresis + close-confirm.
+    // the close-confirm is what removes the “down, up, down” spike on stop.
+    let mut gate_pow_ema: f32 = 0.0;
+    let gate_attack_s: f32 = 0.012;
+    let gate_release_s: f32 = 0.22;
+
+    let gate_open_db: f32 = gate_db;
+    let gate_close_db: f32 = (gate_db - 3.0).max(-80.0);
+
+    let mut gate_state: bool = false;
+    let mut gate_below_s: f32 = 0.0;
+    let gate_close_confirm_s: f32 = 0.12;
 
     loop {
         let mut layout_dirty = false;
@@ -168,6 +184,10 @@ fn main() -> Result<()> {
                         sr = sr_u32 as f32;
                         analyzer.filters.clear();
                     }
+
+                    gate_pow_ema = 0.0;
+                    gate_state = false;
+                    gate_below_s = 0.0;
                 }
                 _ => {}
             }
@@ -201,52 +221,79 @@ fn main() -> Result<()> {
             analyzer.resize(desired_bars);
         }
 
-        let mic_samples = mic_shared
+        let mic_ok = mic_shared
             .try_lock()
             .ok()
-            .map(|b| b.latest())
-            .unwrap_or_default();
-        let sys_samples = sys_shared
+            .map(|b| b.copy_last_n_into(fft_size, &mut mic_tail))
+            .unwrap_or(false);
+
+        let sys_ok = sys_shared
             .try_lock()
             .ok()
-            .map(|b| b.latest())
-            .unwrap_or_default();
+            .map(|b| b.copy_last_n_into(fft_size, &mut sys_tail))
+            .unwrap_or(false);
 
         let tail: &[f32] = match audio.mode() {
             AudioMode::Mic => {
-                if mic_samples.len() < fft_size {
+                if !mic_ok {
                     continue;
                 }
-                &mic_samples[mic_samples.len() - fft_size..]
+                &mic_tail
             }
             AudioMode::System => {
-                if sys_samples.len() < fft_size {
+                if !sys_ok {
                     continue;
                 }
-                &sys_samples[sys_samples.len() - fft_size..]
+                &sys_tail
             }
             AudioMode::Both => {
-                if mic_samples.len() < fft_size
-                    || sys_samples.len() < fft_size
-                {
+                if !mic_ok || !sys_ok {
                     continue;
                 }
-                let mt = &mic_samples[mic_samples.len() - fft_size..];
-                let st = &sys_samples[sys_samples.len() - fft_size..];
                 for i in 0..fft_size {
-                    mix[i] = (mt[i] + st[i]) * 0.5;
+                    mix[i] = (mic_tail[i] + sys_tail[i]) * 0.5;
                 }
                 &mix
             }
         };
 
-        let mut rms = 0.0;
+        let mut rms = 0.0f32;
         for &x in tail {
             rms += x * x;
         }
         rms /= fft_size as f32;
-        let rms_db = 10.0 * (rms.max(1e-12)).log10();
-        let gate_open = rms_db > gate_db;
+
+        if gate_pow_ema == 0.0 {
+            gate_pow_ema = rms;
+        } else {
+            let tau = if rms > gate_pow_ema {
+                gate_attack_s
+            } else {
+                gate_release_s
+            };
+            gate_pow_ema = ema_tc(gate_pow_ema, rms, tau, dt_s);
+        }
+
+        let rms_db = 10.0 * (gate_pow_ema.max(1e-12)).log10();
+
+        if gate_state {
+            if rms_db < gate_close_db {
+                gate_below_s += dt_s;
+                if gate_below_s >= gate_close_confirm_s {
+                    gate_state = false;
+                    gate_below_s = 0.0;
+                }
+            } else {
+                gate_below_s = 0.0;
+            }
+        } else {
+            gate_below_s = 0.0;
+            if rms_db > gate_open_db {
+                gate_state = true;
+            }
+        }
+
+        let gate_open = gate_state;
 
         prepare_fft_input_inplace(tail, &window, &mut buf);
         fft.process(&mut buf);

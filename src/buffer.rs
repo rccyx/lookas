@@ -22,6 +22,51 @@ impl SharedBuf {
         }
     }
 
+    #[inline]
+    pub fn len(&self) -> usize {
+        if self.filled {
+            self.data.len()
+        } else {
+            self.write_idx
+        }
+    }
+
+    pub fn copy_last_n_into(
+        &self,
+        n: usize,
+        out: &mut Vec<f32>,
+    ) -> bool {
+        if n == 0 {
+            out.clear();
+            return true;
+        }
+
+        let cap = self.data.len();
+        let len = self.len();
+        if len < n {
+            return false;
+        }
+
+        out.resize(n, 0.0);
+
+        if self.filled {
+            let start = (self.write_idx + cap - n) % cap;
+            if start + n <= cap {
+                out.copy_from_slice(&self.data[start..start + n]);
+            } else {
+                let first = cap - start;
+                out[..first].copy_from_slice(&self.data[start..cap]);
+                out[first..]
+                    .copy_from_slice(&self.data[..(n - first)]);
+            }
+        } else {
+            let start = self.write_idx - n;
+            out.copy_from_slice(&self.data[start..self.write_idx]);
+        }
+
+        true
+    }
+
     pub fn latest(&self) -> Vec<f32> {
         let len = if self.filled {
             self.data.len()
@@ -36,7 +81,6 @@ impl SharedBuf {
         let mut result = Vec::with_capacity(len);
 
         if self.filled {
-            // optimize memory copy patterns
             unsafe {
                 let ptr = result.as_mut_ptr();
                 let first_chunk = self.data.len() - self.write_idx;
