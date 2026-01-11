@@ -12,11 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       publish: ${{ steps.check.outputs.publish }}
+
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install system deps (ALSA required by cpal/alsa-sys)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev
+
       - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: sudo apt-get install -y jq
 
       - name: Check crates.io version
         id: check
