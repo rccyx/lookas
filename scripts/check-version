@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+meta="$(cargo metadata --no-deps --format-version 1)"
+
+name="$(echo "$meta" | jq -r '.packages[0].name')"
+version="$(echo "$meta" | jq -r '.packages[0].version')"
+
+status="$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/${name}/${version}")"
+
+if [ "$status" = "200" ]; then
+  echo "publish=false" >> "$GITHUB_OUTPUT"
+else
+  echo "publish=true" >> "$GITHUB_OUTPUT"
+fi
+
