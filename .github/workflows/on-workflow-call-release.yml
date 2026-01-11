@@ -6,7 +6,6 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment: release
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
