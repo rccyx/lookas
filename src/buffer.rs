@@ -31,6 +31,11 @@ impl SharedBuf {
         }
     }
 
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        !self.filled && self.write_idx == 0
+    }
+
     pub fn copy_last_n_into(
         &self,
         n: usize,
