@@ -1,6 +1,6 @@
 [package]
 name = "lookas"
-version = "1.4.0"
+version = "1.5.0"
 edition = "2021"
 
 description = "High-performance terminal audio spectrum visualizer with real-time FFT, mel-scale bands, and physics-based animation"
