@@ -11,8 +11,9 @@
     <img src="https://img.shields.io/crates/v/lookas?color=orange&logo=rust&style=for-the-badge" alt="Crates.io"/>
   </a>
 </p>
-
-A high-performance, terminal-based audio spectrum visualizer written in Rust.
+<p align="center">
+  Perception aligned terminal-based audio spectrum visualizer.
+</p>
 
 ## Overview
 
