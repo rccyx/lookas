@@ -53,7 +53,7 @@ jobs:
           kill $pid 2>/dev/null || true
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: lookas-linux-${{ matrix.ubuntu }}-${{ matrix.toolchain }}-${{ github.sha }}
           path: target/release/lookas
