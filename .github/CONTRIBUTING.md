@@ -1,32 +1,21 @@
 # Contributing
 
-This project is optimized for self-directed contributors who are comfortable reading code, understanding intent, and acting without supervision.
+This is a maintainer-light project.
 
-If you’re here to use it, welcome.
+If you’re here to use it, great.
+
 If you’re here to improve it, even better.
 
 ## How this project works
 
-- Pull requests are the primary mechanism for changes.
-- Issues are used to document bugs, gaps, or edge cases.
+- Pull requests are the default.
+- Issues exist to document bugs, gaps, or edge cases.
 
-You do not need prior approval to fix something. If you can address it, submit a pull request.
+Do not wait for permission to fix something. Just fix it.
 
-## Fixing bugs
+If you found a bug and you can fix it, open a pull request directly and explain the fix clearly.
 
-If you identify a bug and can fix it, open a pull request and explain the change clearly.
+If there is an existing issue, link it.
+If there is no issue, the PR itself is sufficient.
 
-If a related issue exists, link it.
-If no issue exists, the pull request itself is sufficient.
-
-Prior approval is not required.
-
-## Communication
-
-All technical discussion happens in public issues or pull requests so it can be reviewed, referenced, and acted upon by everyone.
-
-## Forking
-
-If this operating model aligns with how you work, contributions are welcome.
-
-If not, you are free to fork the project and proceed independently.
+Do not ask whether you should fix it. If you can do it, just do it.
