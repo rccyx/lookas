@@ -17,17 +17,11 @@
 
 ## Overview
 
-### Immersive
-
-<img width="1913" height="1080" alt="image" src="https://github.com/user-attachments/assets/89f5cac5-e6c5-48bb-a029-d29172765200" />
-
-### Integrated
-
-<img width="1920" height="1079" alt="image" src="https://github.com/user-attachments/assets/494c8b20-a512-4273-941b-89095e35e902" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9c8e93cb-b454-4fe2-818a-31bd2849fc5f" />
 
 ## What It Does
 
-Lookas captures **microphone input, system audio, or both**, converts the signal into frequency bands using a mel-scale FFT, and renders it as smooth, physics-driven bars directly in the terminal.
+Lookas captures **microphone input, system audio, or both**, converts the signal into frequency bands using a mel-scale FFT, and renders it as smooth, physics-driven bars directly in your terminal.
 
 Adaptive gain control and noise gating keep the display clean. A spring-damper animation model gives the bars weight and continuity instead of raw jitter. Rendering is optimized for terminal throughput and stable frame pacing rather than flashy redraw tricks.
 
