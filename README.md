@@ -231,7 +231,19 @@ LOOKAS_GATE_DB=-60 lookas
 LOOKAS_TARGET_FPS_MS=33 lookas
 ```
 
-## How It Works
+## Why
+
+Standard audio visualizers are usually nothing more than nervous flickers of raw data, plus IMVHO ugly.
+
+They rely on linear scales that ignore the nuances of human hearing, which results in a twitchy mess that feels like a malfunctioning sensor rather than a musical instrument, fine instrument that is.
+
+I cannot operate a terminal without a soundtrack (as you may have [noticed](https://github.com/rccyx/osyx/commits/main/)), and since I live in the terminal, that space needs to feel intentional.
+
+Aesthetics are a direct consequence of the logic.
+
+Lookas is an attempt to create a connection to the physical world that has actual weight. A way to align those digital pixels with the biological reality of how we experience sound, to then, reach a state of zen.
+
+## How
 
 Lookas runs a low-latency audio pipeline designed for visual stability first.
 
@@ -244,6 +256,10 @@ Animation is driven by a spring-damper model rather than raw amplitude changes. 
 Rendering uses dense Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
 
 On modern Linux systems, this yields a stable 60+ FPS experience with audio-to-visual latency low enough to feel immediate.
+
+## Contributing & Issues
+
+Please read [this](./github/CONTRIBUTING.md)
 
 ## License
 

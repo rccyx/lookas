@@ -2,20 +2,18 @@
 
 This is a maintainer-light project.
 
-If you’re here to use it, great.
+Maintainer-light as in: just me.
 
-If you’re here to improve it, even better.
+If you're here to **use** it, cool.  
+If you're here to **improve** it, even better.
 
-## How this project works
+## How this actually works
 
-- Pull requests are the default.
-- Issues exist to document bugs, gaps, or edge cases.
+- Pull requests are the only way anything gets done.
+- Issues are only for documenting bugs, gaps, or weird edge cases that cannot be fixed, until they're fixed.
 
-Do not wait for permission to fix something. Just fix it.
+Speaking of fixes: **Please do not wait/ask for permission. Just fix it.**
 
-If you found a bug and you can fix it, open a pull request directly and explain the fix clearly.
+If you found a bug and you can fix it → open a pull request, pass all CI checks, and explain what you did, then I'll merge.
 
-If there is an existing issue, link it.
-If there is no issue, the PR itself is sufficient.
-
-Do not ask whether you should fix it. If you can do it, just do it.
+If you found a bug and you **can't** fix it → use one of the 376 agentic tools to fix it for you, pass all CI checks and explain what you did, then I'll merge.
