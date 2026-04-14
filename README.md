@@ -19,13 +19,45 @@
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9c8e93cb-b454-4fe2-818a-31bd2849fc5f" />
 
-## What It Does
+## Explained
+
+<details> <summary><b>What</b></summary>
+<br/>
 
 Lookas captures **microphone input, system audio, or both**, converts the signal into frequency bands using a mel-scale FFT, and renders it as smooth, physics-driven bars directly in your terminal.
 
-Adaptive gain control and noise gating keep the display clean. A spring-damper animation model gives the bars weight and continuity instead of raw jitter. Rendering is optimized for terminal throughput and stable frame pacing rather than flashy redraw tricks.
+</details>
+<details> <summary><b>Why</b></summary>
+<br/>
 
-The result is a visualizer that feels naturally connected to the sound, not a noisy oscilloscope clone.
+Standard audio visualizers are usually nothing more than nervous flickers of raw data, plus IMVHO quite ugly.
+
+They rely on linear scales that ignore the nuances of human hearing, which results in a twitchy mess that feels like a malfunctioning sensor rather than a musical instrument, fine instrument that is.
+
+And since I live rent free in the terminal, that space needs to feel [intentional](https://github.com/rccyx/osyx/commits/main/).
+
+Aesthetics are a direct consequence of the logic. So, Lookas is an attempt to create a connection to the physical world that has actual weight. A way to align those pixels with the biological reality of how we experience sound, to reach a state of Zen.
+
+</details>
+<details> <summary><b>How</b></summary>
+<br/>
+
+It runs a low-latency audio pipeline designed for visual stability first.
+
+Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
+
+Dynamic range is managed continuously using percentile tracking instead of fixed scaling. A noise gate suppresses background hiss, while frequency tilt prevents low or high bands from dominating the display.
+
+Animation is driven by a spring-damper model rather than raw amplitude changes. Energy diffuses laterally between neighboring bands, which produces a fluid motion, instead of twitchiness.
+
+Rendering uses dense Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
+
+On modern Linux, this yields a stable 60+ FPS experience with audio-to-visual latency low enough to feel immediate.
+
+</details>
+
+> [!NOTE]
+> Thyx as a standalone FOSS is an extension of [OSYX](https://github.com/rccyx/osyx).
 
 ## Installation
 
@@ -41,7 +73,7 @@ If your system already has working audio (microphone or system sound),
 
 Lookas will just run.
 
-> [!NOTE]
+> [!IMPORTANT]
 > On very minimal Linux installs, you might be missing a couple of audio packages.
 > If Lookas fails to start or can’t capture audio, run:
 >
@@ -97,7 +129,8 @@ You can also point to a file explicitly:
 LOOKAS_CONFIG=/path/to/lookas.toml lookas
 ```
 
-<details> <summary><b>To create the config file, simply copy-paste into your terminal</b></summary>
+<details> <summary><b>To create the config file, simply copy-paste this into your terminal</b></summary>
+<br/>
 
 ```bash
 mkdir -p ~/.configs
@@ -231,35 +264,9 @@ LOOKAS_GATE_DB=-60 lookas
 LOOKAS_TARGET_FPS_MS=33 lookas
 ```
 
-## Why
-
-Standard audio visualizers are usually nothing more than nervous flickers of raw data, plus IMVHO ugly.
-
-They rely on linear scales that ignore the nuances of human hearing, which results in a twitchy mess that feels like a malfunctioning sensor rather than a musical instrument, fine instrument that is.
-
-I cannot operate a terminal without a soundtrack (as you may have [noticed](https://github.com/rccyx/osyx/commits/main/)), and since I live in the terminal, that space needs to feel intentional.
-
-Aesthetics are a direct consequence of the logic.
-
-Lookas is an attempt to create a connection to the physical world that has actual weight. A way to align those digital pixels with the biological reality of how we experience sound, to then, reach a state of zen.
-
-## How
-
-Lookas runs a low-latency audio pipeline designed for visual stability first.
-
-Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
-
-Dynamic range is managed continuously using percentile tracking instead of fixed scaling. A noise gate suppresses background hiss, while frequency tilt prevents low or high bands from dominating the display.
-
-Animation is driven by a spring-damper model rather than raw amplitude changes. Energy diffuses laterally between neighboring bands, producing motion that feels fluid instead of twitchy.
-
-Rendering uses dense Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
-
-On modern Linux systems, this yields a stable 60+ FPS experience with audio-to-visual latency low enough to feel immediate.
-
 ## Contributing & Issues
 
-Please read [this](./github/CONTRIBUTING.md)
+Please read [this](.github/CONTRIBUTING.md)
 
 ## License
 
