@@ -17,7 +17,11 @@
 
 ## Overview
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9c8e93cb-b454-4fe2-818a-31bd2849fc5f" />
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=lVDFpoCkvh8">
+    <img src="./assets/demo.gif" alt="Lookas Demo" width="100%">
+  </a>
+</p>
 
 ## Explained
 
