@@ -23,7 +23,7 @@
   </a>
 </p>
 
-## Explained
+## Explainers
 
 <details> <summary><b>What</b></summary>
 <br/>
@@ -34,13 +34,9 @@ Lookas captures **microphone input, system audio, or both**, converts the signal
 <details> <summary><b>Why</b></summary>
 <br/>
 
-Standard audio visualizers are usually nothing more than nervous flickers of raw data, plus IMVHO quite ugly.
+Since I live rent free in the terminal, that space needs to feel [intentional](https://github.com/rccyx/osyx/commits/main/).
 
-They rely on linear scales that ignore the nuances of human hearing, which results in a twitchy mess that feels like a malfunctioning sensor rather than a musical instrument, fine instrument that is.
-
-And since I live rent free in the terminal, that space needs to feel [intentional](https://github.com/rccyx/osyx/commits/main/).
-
-Aesthetics are a direct consequence of the logic. So, Lookas is an attempt to create a connection to the physical world that has actual weight. A way to align those pixels with the biological reality of how we experience sound, to reach a state of Zen.
+Aesthetics are a direct consequence of the logic. So, Lookas is an attempt to create a connection to the physical world that has actual weight. A way to align those pixels with the biological reality of how we experience sound.
 
 </details>
 <details> <summary><b>How</b></summary>
@@ -60,8 +56,76 @@ On modern Linux, this yields a stable 60+ FPS experience with audio-to-visual la
 
 </details>
 
+<details>
+<summary><strong>Why not use CAVA?</strong></summary>
+
+On the surface it may look like "just another CAVA clone/reinvent the wheel situation."
+
+**It’s not.**
+
+They may look similar in static screenshots. But they feel completely different in motion.
+
+Here’s the real difference:
+
+**TL;DR**  
+**CAVA** is the battle-tested, Swiss-army-knife visualizer (de facto standard, cross-platform, insanely configurable).
+
+**Lookas** is the opinionated, perception-first tool that deliberately throws away raw linear-FFT twitchiness and replaces it with human-hearing-aligned physics so the bars _feel_ like real sound instead of a nervous digital meter.
+
+### Philosophy
+
+- **CAVA**: Makes pretty, responsive dancing bars that work everywhere with maximum flexibility. No deep claims about biology or physics. It’s aesthetic eye-candy tuned for low CPU and broad compatibility.
+
+- **Lookas**: Fixes the core issue that most visualizers feel disconnected from how humans actually _hear_ sound. Goal = biological/perceptual alignment + physical weight. Mel-scale + spring-damper + lateral energy diffusion = a visualization that has _intentional_ heft instead of jitter.
+
+### Audio Pipeline & Physics Difference
+
+| Aspect              | CAVA (logarithmic FFTW)                    | Lookas (mel-scale + real physics)                            |
+| ------------------- | ------------------------------------------ | ------------------------------------------------------------ |
+| Frequency mapping   | Logarithmic binning (more bass resolution) | **Mel-scale filterbank** (matches human loudness perception) |
+| Windowing           | Hann window                                | Hann window                                                  |
+| Dynamic range       | Autosens + manual sensitivity              | **Continuous percentile tracking**                           |
+| Noise handling      | Basic noise reduction                      | **Explicit noise gate** (`gate_db`)                          |
+| Frequency balance   | Per-bar EQ (configurable)                  | **`tilt_alpha`** (compensates natural high-freq roll-off)    |
+| Temporal smoothing  | Quadratic gravity + integral EMA           | **Exponential smoothing** (`tau_spec`)                       |
+| Animation model     | Height changes with gravity fall-off       | **Second-order spring-damper system** (`spr_k` + `spr_zeta`) |
+| Lateral interaction | None                                       | **Energy diffusion** (`flow_k`) between neighboring bars     |
+
+### Input & Output
+
+**Input**
+
+- CAVA: Extremely flexible (PipeWire, PulseAudio, ALSA loopback, JACK, FIFO/MPD, Sndio, OSS, PortAudio, shared memory, Windows default). You can wire almost anything.
+
+- Lookas: Deliberately minimal: Mic (1), System loopback (2), or Mix (3). Hotkey swap + auto-fallback. Low-latency pipeline tuned for stability, not maximum flexibility. Linux-only (Rust-only for now).
+
+**Output**
+
+- CAVA: Terminal (noncurses/ncurses), **SDL desktop window with GLSL shaders**, raw data (pipe to anything). Multiple orientations, bar widths, gradients, etc.
+
+- Lookas: Terminal-only. Optimized Unicode-block renderer (single clear per frame + contiguous writes -> zero flicker, buttery-smooth gradients).
+
+### Config & User Experience
+
+CAVA: Huge, heavily commented INI file. You can tweak literally everything (bars, sensitivity, cutoffs, EQ, colors, framerate, sleep timer, etc.). Live reload with SIGUSR1/SIGUSR2.
+
+Lookas: **Zero-config by default**. Tiny optional TOML (`~/.config/lookas.toml`) with only the perceptual knobs that actually matter. Environment-variable overrides. Keyboard controls built-in. Ships with sane defaults so it “just works”.
+
+### Performance & Feel
+
+Both run 60+ FPS on modern hardware and are very light on CPU.  
+The difference is in the **_feel_**.
+
+CAVA gives you crisp, responsive dancing bars.
+
+Lookas gives you bars that have **mass, momentum, and perceptual weight**, they move like real sound propagating through air.
+
+</details>
+
+<br/>
+
 > [!NOTE]
-> Thyx as a standalone FOSS is an extension of [OSYX](https://github.com/rccyx/osyx).
+> Lookas as a standalone FOSS is an extension of [OSYX](https://github.com/rccyx/osyx).
 
 ## Installation
 
@@ -121,7 +185,7 @@ Precedence is:
 
 Environment variables > config file > defaults
 
-### Config file
+### Config File
 
 The default location is:
 
@@ -133,128 +197,101 @@ You can also point to a file explicitly:
 LOOKAS_CONFIG=/path/to/lookas.toml lookas
 ```
 
-<details> <summary><b>To create the config file, simply copy-paste this into your terminal</b></summary>
-<br/>
+To create the config file, simply copy-paste this into your terminal
 
 ```bash
-mkdir -p ~/.configs
+mkdir -p ~/.config
 cat > ~/.config/lookas.toml <<'TOML'
-# Lookas configuration file
-# source: https://github.com/rccyx/lookas
-#
-# This file is optional. If missing, lookas runs with built-in defaults.
-#
-# --------------------------------------------------------------------
-# Core concepts:
-#
-# FFT = Fast Fourier Transform.
-# converts time-domain audio into frequency bins.
-# canonical paper: Cooley & Tukey (1965)
-# https://www.ams.org/mcom/1965-19-090/S0025-5718-1965-0178586-1/S0025-5718-1965-0178586-1.pdf
-#
-# τ (tau) = time constant.
-# controls how quickly a value responds vs smooths.
-# MIT OCW (control systems):
-# https://ocw.mit.edu/courses/2-004-systems-modeling-and-control-ii-fall-2007/26a1e7459044ff2652c63c7c98138e4b_lecture06.pdf
-#
-# ζ (zeta) = damping ratio for a 2nd-order system.
-# controls overshoot vs settle behavior.
-# MIT OCW:
-# https://ocw.mit.edu/courses/2-003-modeling-dynamics-and-control-i-spring-2005/57d44d83366ec969c16208c8fac3982d_notesinstalment2.pdf
-#
-# --------------------------------------------------------------------
-# Quick fixes
-#
-# bars move in silence      -> raise gate_db (less negative)
-# quiet audio not visible   -> lower gate_db (more negative)
-# jittery / nervous motion  -> raise tau_spec or spr_zeta
-# laggy / heavy feel        -> lower tau_spec or fft_size
-# high cpu usage            -> raise target_fps_ms or lower fft_size
-
-
-# ====================================================================
-# frequency range (hz)
-# ====================================================================
-
-# minimum frequency shown (bass)
 fmin = 30.0
-
-# maximum frequency shown (treble)
 fmax = 16000.0
-
-
-# ====================================================================
-# spectrum resolution (fft)
-# ====================================================================
-
-# fft_size = samples per FFT window (power of two)
-#
-# lower  -> faster response, less detail
-# higher -> more detail, more cpu, slightly more latency
-#
-# common values: 1024, 2048, 4096
 fft_size = 2048
-
-
-# ====================================================================
-# frame pacing
-# ====================================================================
-
-# target time per frame (ms)
-# 16 ≈ 60 fps, 33 ≈ 30 fps
 target_fps_ms = 16
-
-
-# ====================================================================
-# spectrum smoothing (τ)
-# ====================================================================
-
-# tau_spec = spectrum smoothing time constant (seconds)
-#
-# lower  -> snappier, more jitter
-# higher -> smoother, heavier feel
 tau_spec = 0.06
-
-
-# ====================================================================
-# noise gate
-# ====================================================================
-
-# gate_db = silence threshold
-#
-# less negative -> stricter silence
-# more negative -> more sensitive
 gate_db = -55.0
-
-
-# ====================================================================
-# frequency balance + motion coupling
-# ====================================================================
-
-# tilt_alpha = frequency balance compensation (0..1)
 tilt_alpha = 0.30
-
-# flow_k = sideways energy diffusion (0..1)
 flow_k = 0.18
-
-
-# ====================================================================
-# spring-damper animation (k, ζ)
-# ====================================================================
-
-# spr_k = spring stiffness
 spr_k = 60.0
-
-# spr_zeta = damping ratio ζ
-#
-# < 1.0  -> bouncy
-# = 1.0  -> fast settle, no overshoot
-# > 1.0  -> heavy / slow settle
 spr_zeta = 1.0
 TOML
 ```
 
-</details>
+### Options
+
+### Frequency Boundaries
+
+The `fmin` and `fmax` values determine the absolute lowest and highest frequencies rendered by the visualizer, measured in Hertz.
+
+The `fmin` sets the bass cutoff, mapping to the lowest perceptible rumbles, with a practical minimum of around 20.0 and a maximum depending on your desired low-end focus. Setting it to 30.0 ignores inaudible sub-bass mud.
+
+The `fmax` sets the treble ceiling, dictating the highest pitch the visualizer will display.
+
+While human hearing maxes out around 20000.0, most meaningful audio content tapers off sooner, making 16000.0 a clean default.
+
+> [!WARNING]
+> Pushing `fmax` too high will result in empty bars on the right side of the spectrum if your audio source lacks high-frequency energy.
+
+### Spectrum Resolution
+
+The `fft_size` dictates the number of samples per Fast Fourier Transform window. This process relies on the canonical algorithm detailed in the [Cooley & Tukey (1965) paper.](https://www.ams.org/mcom/1965-19-090/S0025-5718-1965-0178586-1/S0025-5718-1965-0178586-1.pdf) This value must strictly be a power of two. The absolute minimum is 512, which gives an incredibly fast response time but terribly blurred frequency detail.
+
+The maximum practical value is 8192, yielding extreme detail at the cost of high CPU utilization and noticeable input latency. The default of 2048 sits at the optimal intersection of performance, minimal latency, and distinct frequency separation.
+
+### Frame Pacing
+
+The `target_fps_ms` value establishes the render loop's resting heartbeat, defining the target time per frame in milliseconds.
+
+Setting this to 16 forces the visualizer to update roughly 60 times a second. You can drop this down to 8 for an ultra-fluid 120 FPS experience if your terminal emulator can actually handle the throughput, or raise it to 33 to cap it at a relaxed 30 FPS, drastically cutting down on CPU overhead.
+
+> [!WARNING]
+> Going above 50 milliseconds will make the visualizer feel noticeably choppy and disconnected from the audio.
+
+### Spectrum Smoothing
+
+The `tau_spec` controls the time constant (τ), governing how rapidly the raw frequency data responds versus how much it relies on historical smoothing (read the underlying math [here.](https://ocw.mit.edu/courses/2-004-systems-modeling-and-control-ii-fall-2007/26a1e7459044ff2652c63c7c98138e4b_lecture06.pdf))
+
+A minimal value close to 0.01 makes the visualizer snappy and instantly reactive, but also highly jittery. A maximal value approaching 0.5 turns the bars sluggish and heavy, creating a long fade-out trail.
+
+The default of 0.06 provides a polished decay that tracks fast transients without inducing visual fatigue.
+
+### Noise Gate
+
+The `gate_db` defines the absolute silence threshold in decibels. This dictates the point at which background noise is entirely suppressed. If your environment or microphone has a persistent hiss, you would raise this to a less negative number, like -30.0, which enforces strict silence and only allows distinctly loud audio to register.
+
+If quiet nuances in your music are failing to appear on the visualizer, you drop this to a more negative extreme, something like -80.0, making the application highly sensitive. The 55.0 default is tuned to reject standard line noise while capturing quiet room ambiance.
+
+### Frequency Balance
+
+The `tilt_alpha` compensates for the natural roll-off of high frequencies in most audio mixes, so that the treble bars aren't perpetually dwarfed by the bass.
+
+This value is strictly between 0.0 and 1.0.
+
+At a minimum of 0.0, no spectral compensation is applied, which results in a physically accurate but visually lopsided spectrum where the left side dominates.
+
+Pushing it towards the maximum of 1.0 violently amplifies the high end.
+
+The 0.30 sweet spot applies just enough tilt to create an evenly distributed visual landscape across all frequency bands.
+
+### Motion Coupling
+
+The `flow_k` parameter governs the lateral diffusion of energy, bleeding a calculated fraction of one bar's amplitude into its immediate neighbors.
+
+It's restricted between 0.0 and 1.0.
+
+Setting this to the absolute minimum of 0.0 severs all connections, meaning every single frequency band moves independently like a raw digital meter.
+
+Approaching the maximum of 1.0 causes so much bleed that the visualizer becomes an undefined, solid block of moving color.
+
+The 0.18 default injects just enough organic cohesion so the bars move together like a continuous fluid wave.
+
+### Spring-Damper Animation
+
+The `spr_k` and `spr_zeta` variables completely dictate the physical weight and momentum of the bars using a second-order system model.
+
+The `spr_k` represents spring stiffness, ranging from a lethargic minimum of 10.0 to a violently rigid maximum of 200.0, determining the raw force pulling the bar to its target height.
+
+The `spr_zeta` represents the damping ratio (ζ) (for a deep dive, read [this.](https://ocw.mit.edu/courses/2-003-modeling-dynamics-and-control-i-spring-2005/57d44d83366ec969c16208c8fac3982d_notesinstalment2.pdf))
+
+A zeta value below 1.0 creates an underdamped system, causing the bars to bounce past their target before settling. A zeta value exactly at 1.0, the default, achieves critical damping, meaning the bar snaps to the target instantly with zero overshoot. Any value above 1.0 makes the system overdamped, resulting in a heavy, delayed crawl to the peak.
 
 ### Environment variable overrides
 
