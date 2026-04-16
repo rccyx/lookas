@@ -58,7 +58,7 @@ On modern Linux, this yields a stable 60+ FPS experience with audio-to-visual la
 
 <details>
 <summary><strong>Why not use CAVA?</strong></summary>
-
+<br/>
 On the surface it may look like "just another CAVA clone/reinvent the wheel situation."
 
 **It’s not.**
@@ -121,6 +121,16 @@ CAVA gives you crisp, responsive dancing bars.
 Lookas gives you bars that have **mass, momentum, and perceptual weight**, they move like real sound propagating through air.
 
 </details>
+
+## Comparison
+
+Both Lookas ( ↓ ) and CAVA ( ↑ ) are running on default configs
+
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/557e377d-6eb3-47dc-ae94-8e507a2337ad" width="100%" controls>
+    Your browser does not support the video tag.
+  </video>
+</div>
 
 <br/>
 
