@@ -1,5 +1,3 @@
-use rustfft::num_complex::Complex;
-
 pub fn hann(n: usize) -> Vec<f32> {
     let den = (n.max(2) - 1) as f32;
     let pi2_div_den = 2.0 * std::f32::consts::PI / den;
@@ -27,29 +25,22 @@ pub fn mel_to_hz(m: f32) -> f32 {
 pub fn prepare_fft_input(
     samples: &[f32],
     window: &[f32],
-) -> Vec<Complex<f32>> {
-    let mut result = Vec::with_capacity(samples.len());
-    for (i, &x) in samples.iter().enumerate() {
-        result.push(Complex {
-            re: x * window[i],
-            im: 0.0,
-        });
-    }
-    result
+) -> Vec<f32> {
+    samples
+        .iter()
+        .zip(window.iter())
+        .map(|(&s, &w)| s * w)
+        .collect()
 }
 
 #[inline]
 pub fn prepare_fft_input_inplace(
     samples: &[f32],
     window: &[f32],
-    buf: &mut Vec<Complex<f32>>,
+    buf: &mut Vec<f32>,
 ) {
     buf.clear();
-    buf.reserve(samples.len());
-    for (i, &x) in samples.iter().enumerate() {
-        buf.push(Complex {
-            re: x * window[i],
-            im: 0.0,
-        });
-    }
+    buf.extend(
+        samples.iter().zip(window.iter()).map(|(&s, &w)| s * w),
+    );
 }

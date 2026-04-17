@@ -2,38 +2,32 @@
 name = "lookas"
 version = "1.5.1"
 edition = "2021"
-
+authors = ["@rccyx <https://rccyx.com>"]
 description = "Perception aligned terminal-based audio spectrum visualizer"
 readme = "README.md"
 license = "MIT"
-
 repository = "https://github.com/rccyx/lookas"
 homepage = "https://github.com/rccyx/lookas"
-documentation = "https://docs.rs/lookas"
-
-keywords = [
-  "audio",
-  "audio-visualizer",
-  "spectrum-analyzer",
-  "music",
-  "sound"
-]
-
-categories = [
-  "multimedia::audio",
-  "visualization",
-  "command-line-utilities",
-  "multimedia"
-]
+documentation = "https://github.com/rccyx/lookas"
+keywords = ["audio", "audio-visualizer", "spectrum-analyzer", "terminal", "physics"]
+categories = ["multimedia::audio", "visualization", "command-line-utilities"]
 
 [dependencies]
 anyhow = "1.0"
-cpal = "0.15"
 crossterm = "0.27"
-dirs = "5.0"
-rustfft = "6"
+cpal = "0.15"
+rustfft = "6.2"
+realfft = "3.3"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+dirs = "5.0"
 
-[target.'cfg(unix)'.dependencies]
+[target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = 'abort'
+strip = true

@@ -14,7 +14,7 @@ use lookas::{
     render::{layout_for, render_blocks_vertical_frame},
     utils::scopeguard,
 };
-use rustfft::FftPlanner;
+use realfft::RealFftPlanner;
 use std::{
     io::{stdout, Write},
     sync::{Arc, Mutex},
@@ -92,16 +92,19 @@ fn main() -> Result<()> {
     let mut sr = sr_u32 as f32;
 
     let window = hann(fft_size);
-    let mut planner = FftPlanner::<f32>::new();
-    let fft = planner.plan_fft_forward(fft_size);
     let half = fft_size / 2;
+
+    let mut planner = RealFftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(fft_size);
+
+    let mut buf = fft.make_input_vec();
+    let mut fft_out = fft.make_output_vec();
 
     let mut last = Instant::now();
     let target_dt = Duration::from_millis(target_fps_ms);
     let mut analyzer = SpectrumAnalyzer::new(half);
 
-    let mut buf = Vec::with_capacity(fft_size);
-    let mut spec_pow = vec![0.0; half];
+    let mut spec_pow = vec![0.0f32; half];
 
     let mut mic_tail: Vec<f32> = Vec::with_capacity(fft_size);
     let mut sys_tail: Vec<f32> = Vec::with_capacity(fft_size);
@@ -113,8 +116,6 @@ fn main() -> Result<()> {
         (w as usize * h as usize * 4).max(64 * 1024),
     );
 
-    // gate smoothing + hysteresis + close-confirm.
-    // the close-confirm is what removes the “down, up, down” spike on stop.
     let mut gate_pow_ema: f32 = 0.0;
     let gate_attack_s: f32 = 0.012;
     let gate_release_s: f32 = 0.22;
@@ -296,13 +297,15 @@ fn main() -> Result<()> {
         let gate_open = gate_state;
 
         prepare_fft_input_inplace(tail, &window, &mut buf);
-        fft.process(&mut buf);
 
+        fft.process(&mut buf, &mut fft_out)
+            .expect("realfft process failed");
+
+        let norm = (fft_size as f32) * (fft_size as f32);
         for i in 0..half {
-            let re = buf[i].re;
-            let im = buf[i].im;
-            spec_pow[i] = (re * re + im * im)
-                / (fft_size as f32 * fft_size as f32);
+            let re = fft_out[i].re;
+            let im = fft_out[i].im;
+            spec_pow[i] = (re * re + im * im) / norm;
         }
 
         analyzer.update_spectrum(&spec_pow, tau_spec, dt_s);
