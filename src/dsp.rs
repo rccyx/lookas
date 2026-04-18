@@ -44,3 +44,34 @@ pub fn prepare_fft_input_inplace(
         samples.iter().zip(window.iter()).map(|(&s, &w)| s * w),
     );
 }
+
+// weighting amplitude multiplier per IEC 61672:2003.
+/// Returns a linear scale factor (not dB) that, when applied to a
+/// linear amplitude value, weights it according to the human ear's
+/// frequency sensitivity. The curve peaks near 3–4 kHz and rolls off
+/// steeply below ~500 Hz and above ~10 kHz.
+#[inline]
+pub fn a_weighting(hz: f32) -> f32 {
+    // clamped to avoid division-by-zero or meaningless sub-1 Hz input.
+    let f = hz.max(10.0);
+    let f2 = f * f;
+    let f4 = f2 * f2;
+
+    const P1_SQ: f32 = 20.6_f32 * 20.6_f32; // 424.36
+    const P2_SQ: f32 = 107.7_f32 * 107.7_f32; // 11_599.29
+    const P3_SQ: f32 = 737.9_f32 * 737.9_f32; // 544_496.41
+    const P4_SQ: f32 = 12_194.0_f32 * 12_194.0_f32; // 148_692_836.0
+
+    // Unnormalised Ra(f).
+    let num = P4_SQ * f4;
+    let den = (f2 + P1_SQ)
+        * ((f2 + P2_SQ) * (f2 + P3_SQ)).sqrt()
+        * (f2 + P4_SQ);
+
+    let ra = num / den;
+
+    // IEC 61672 normalises so that A(1 kHz) = 0 dB ,the standard adds +2.0 dB to the raw Ra curve, i.e. multiplies
+    // by 10^(2/20) ≈ 1.2589.  This makes Ra(1000) * NORM ≈ 1.0.
+    const NORM: f32 = 1.258_925_4; // 10^(2/20)
+    ra * NORM
+}

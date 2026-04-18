@@ -1,4 +1,4 @@
-use crate::dsp::ema_tc;
+use crate::dsp::{a_weighting, ema_tc};
 use crate::filterbank::Tri;
 
 pub struct SpectrumAnalyzer {
@@ -47,18 +47,22 @@ impl SpectrumAnalyzer {
     ) {
         let len = self.spec_pow_smooth.len().min(spec_pow.len());
         for (i, &pow) in spec_pow.iter().enumerate().take(len) {
-            self.spec_pow_smooth[i] = ema_tc(
-                self.spec_pow_smooth[i],
-                pow.max(1e-12),
-                tau_spec,
-                dt_s,
-            );
+            let incoming = pow.max(1e-12);
+            let prev = self.spec_pow_smooth[i];
+
+            // onstant attack if energy rose, snap immediately & smooth release if energy fell, decay via EMA.
+            self.spec_pow_smooth[i] = if incoming >= prev {
+                incoming
+            } else {
+                ema_tc(prev, incoming, tau_spec, dt_s)
+            };
         }
     }
 
+    /// compute per-band dB values and map them to normalised bar targets.
     pub fn analyze_bands(
         &mut self,
-        tilt_alpha: f32,
+        _tilt_alpha: f32,
         dt_s: f32,
         gate_open: bool,
     ) -> Vec<f32> {
@@ -74,14 +78,14 @@ impl SpectrumAnalyzer {
             }
             let amp = acc.sqrt();
 
-            let tilt =
-                (tri.center_hz / 1000.0).max(0.001).powf(tilt_alpha);
-            let amp_tilted = amp * tilt;
+            // perceptually accurate frequency sensitivity
+            // curve that peaks at ~3-4 kHz and rolls off at both ends,
+            let amp_weighted = amp * a_weighting(tri.center_hz);
 
             self.eq_ref[i] =
-                ema_tc(self.eq_ref[i], amp_tilted, 6.0, dt_s)
+                ema_tc(self.eq_ref[i], amp_weighted, 6.0, dt_s)
                     .max(1e-9);
-            let rel = amp_tilted / self.eq_ref[i];
+            let rel = amp_weighted / self.eq_ref[i];
 
             db_per_band[i] = 20.0 * rel.max(1e-12).log10();
         }
@@ -142,7 +146,7 @@ impl SpectrumAnalyzer {
         }
 
         if !gate_open {
-            let tau_silence = 0.22f32; // smooth fade, not a trapdoor
+            let tau_silence = 0.22f32;
             let a = (-dt_s / tau_silence).exp();
 
             for i in 0..n {
