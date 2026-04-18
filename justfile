@@ -3,6 +3,7 @@ alias c:= clean
 alias f:= format
 alias l:= clippy  # l for lint
 alias b:= build
+alias t:= test
 
 @clean:
     rm -rf target  dist
@@ -20,3 +21,5 @@ alias b:= build
 @clippy:
     cargo clippy -- -D warnings -A incomplete_features -W clippy::dbg_macro -W clippy::print_stdout
 
+@test:
+    cargo test
