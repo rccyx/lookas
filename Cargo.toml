@@ -1,6 +1,6 @@
 [package]
 name = "lookas"
-version = "1.7.0"
+version = "1.7.1"
 edition = "2021"
 authors = ["@rccyx <https://rccyx.com>"]
 description = "Perception aligned terminal-based audio spectrum visualizer"
