@@ -401,7 +401,6 @@ dependencies = [
  "dirs",
  "libc",
  "realfft",
- "rustfft",
  "serde",
  "toml",
 ]

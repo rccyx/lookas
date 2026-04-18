@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Sample, SampleFormat, SizedSample, StreamConfig};
-use rustfft::num_traits::ToPrimitive;
 
 use crate::buffer::SharedBuf;
 use std::process::{Command, Stdio};
@@ -144,7 +143,8 @@ pub fn build_stream<T>(
     shared: Arc<Mutex<SharedBuf>>,
 ) -> Result<cpal::Stream>
 where
-    T: Sample + SizedSample + ToPrimitive,
+    T: Sample + SizedSample,
+    f32: cpal::FromSample<T>,
 {
     let ch = cfg.channels as usize;
     let err_fn = |_| {};
@@ -156,7 +156,7 @@ where
                 for frame in data.chunks_exact(ch) {
                     let mut acc = 0.0f32;
                     for &s in frame {
-                        acc += s.to_f32().unwrap_or(0.0);
+                        acc += s.to_sample::<f32>();
                     }
                     buf.push(acc / ch as f32);
                 }
