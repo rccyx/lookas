@@ -8,14 +8,14 @@ fn to_db(linear: f32) -> f32 {
 fn a_weighting_reference_values() {
     let cases: &[(f32, f32, f32)] = &[
         //  Hz     expected dB  tol
-        (  125.0,  -16.1,       1.0),
-        (  250.0,   -8.6,       1.0),
-        (  500.0,   -3.2,       1.0),
-        ( 1_000.0,   0.0,       0.1), 
-        ( 2_000.0,   1.2,       1.0),
-        ( 4_000.0,   1.0,       1.0),
-        ( 8_000.0,  -1.1,       1.0),
-        (16_000.0,  -6.6,       1.5),
+        (125.0, -16.1, 1.0),
+        (250.0, -8.6, 1.0),
+        (500.0, -3.2, 1.0),
+        (1_000.0, 0.0, 0.1),
+        (2_000.0, 1.2, 1.0),
+        (4_000.0, 1.0, 1.0),
+        (8_000.0, -1.1, 1.0),
+        (16_000.0, -6.6, 1.5),
     ];
 
     for &(hz, expected_db, tol) in cases {
@@ -44,15 +44,22 @@ fn a_weighting_peaks_near_3_to_4_khz() {
     let w_3k = a_weighting(3_150.0);
     let w_1k = a_weighting(1_000.0);
     let w_8k = a_weighting(8_000.0);
-    assert!(w_3k > w_1k, "3.15 kHz should have higher weight than 1 kHz");
-    assert!(w_3k > w_8k, "3.15 kHz should have higher weight than 8 kHz");
+    assert!(
+        w_3k > w_1k,
+        "3.15 kHz should have higher weight than 1 kHz"
+    );
+    assert!(
+        w_3k > w_8k,
+        "3.15 kHz should have higher weight than 8 kHz"
+    );
 }
 
 #[test]
 fn a_weighting_monotone_rolloff_in_bass() {
     // below the peak, weight should fall as frequency drops.
     let freqs = [500.0f32, 250.0, 125.0, 63.0, 31.5];
-    let weights: Vec<f32> = freqs.iter().map(|&f| a_weighting(f)).collect();
+    let weights: Vec<f32> =
+        freqs.iter().map(|&f| a_weighting(f)).collect();
     for w in weights.windows(2) {
         assert!(
             w[0] > w[1],
@@ -84,10 +91,7 @@ fn ema_tc_converges_to_target() {
     for _ in 0..1000 {
         v = ema_tc(v, 1.0, tau, dt);
     }
-    assert!(
-        (v - 1.0).abs() < 1e-3,
-        "EMA did not converge: got {v}"
-    );
+    assert!((v - 1.0).abs() < 1e-3, "EMA did not converge: got {v}");
 }
 
 #[test]
@@ -188,8 +192,12 @@ fn mel_hz_roundtrip() {
 #[test]
 fn mel_scale_is_monotone() {
     let freqs = [100.0f32, 500.0, 1_000.0, 4_000.0, 10_000.0];
-    let mels: Vec<f32> = freqs.iter().map(|&f| hz_to_mel(f)).collect();
+    let mels: Vec<f32> =
+        freqs.iter().map(|&f| hz_to_mel(f)).collect();
     for m in mels.windows(2) {
-        assert!(m[1] > m[0], "mel scale should be monotonically increasing");
+        assert!(
+            m[1] > m[0],
+            "mel scale should be monotonically increasing"
+        );
     }
 }
