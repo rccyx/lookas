@@ -16,7 +16,6 @@ categories = ["multimedia::audio", "visualization", "command-line-utilities"]
 anyhow = "1.0"
 crossterm = "0.27"
 cpal = "0.15"
-rustfft = "6.2"
 realfft = "3.3"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
