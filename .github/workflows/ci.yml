@@ -29,13 +29,18 @@ jobs:
     uses: ./.github/workflows/on-workflow-call-build.yml
     secrets: inherit
 
+  test:
+    uses: ./.github/workflows/on-workflow-call-test.yml
+    secrets: inherit
+
   check:
-    needs: [format, lint, build]
+    needs: [ format, lint, build, test ]
     uses: ./.github/workflows/on-workflow-call-check.yml
     secrets: inherit
 
   release:
-    if: needs.check.outputs.publish == 'yes' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check]
+    if: needs.check.outputs.publish == 'yes' && github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+    needs: [ check ]
     uses: ./.github/workflows/on-workflow-call-release.yml
     secrets: inherit
