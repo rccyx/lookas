@@ -37,7 +37,6 @@ fn main() -> Result<()> {
     let fft_size: usize = cfg.fft_size;
     let tau_spec: f32 = cfg.tau_spec;
     let gate_db: f32 = cfg.gate_db;
-    let tilt_alpha: f32 = cfg.tilt_alpha;
     let flow_k: f32 = cfg.flow_k;
     let spr_k: f32 = cfg.spr_k;
     let spr_zeta: f32 = cfg.spr_zeta;
@@ -309,8 +308,7 @@ fn main() -> Result<()> {
         }
 
         analyzer.update_spectrum(&spec_pow, tau_spec, dt_s);
-        let bars_target =
-            analyzer.analyze_bands(tilt_alpha, dt_s, gate_open);
+        let bars_target = analyzer.analyze_bands(dt_s, gate_open);
         analyzer.apply_flow_and_spring(
             &bars_target,
             &FlowSpringParams {

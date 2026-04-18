@@ -59,10 +59,9 @@ impl SpectrumAnalyzer {
         }
     }
 
-    /// compute per-band dB values and map them to normalised bar targets.
+    // compute per-band dB values and map them to normalised bar targets.
     pub fn analyze_bands(
         &mut self,
-        _tilt_alpha: f32,
         dt_s: f32,
         gate_open: bool,
     ) -> Vec<f32> {

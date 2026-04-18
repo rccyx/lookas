@@ -10,7 +10,6 @@ pub struct Config {
     pub fft_size: usize,
     pub tau_spec: f32,
     pub gate_db: f32,
-    pub tilt_alpha: f32,
     pub flow_k: f32,
     pub spr_k: f32,
     pub spr_zeta: f32,
@@ -25,7 +24,6 @@ impl Config {
             fft_size: 2048,
             tau_spec: 0.06,
             gate_db: -65.0,
-            tilt_alpha: 0.30,
             flow_k: 0.18,
             spr_k: 60.0,
             spr_zeta: 1.0,
@@ -64,9 +62,6 @@ impl Config {
         if let Some(v) = fc.gate_db {
             self.gate_db = v;
         }
-        if let Some(v) = fc.tilt_alpha {
-            self.tilt_alpha = v;
-        }
         if let Some(v) = fc.flow_k {
             self.flow_k = v;
         }
@@ -97,9 +92,6 @@ impl Config {
         if let Some(v) = env_parse::<f32>("LOOKAS_GATE_DB") {
             self.gate_db = v;
         }
-        if let Some(v) = env_parse::<f32>("LOOKAS_TILT_ALPHA") {
-            self.tilt_alpha = v;
-        }
         if let Some(v) = env_parse::<f32>("LOOKAS_FLOW_K") {
             self.flow_k = v;
         }
@@ -125,7 +117,6 @@ impl Config {
 
         self.tau_spec = self.tau_spec.clamp(0.01, 0.20);
         self.gate_db = self.gate_db.clamp(-80.0, -30.0);
-        self.tilt_alpha = self.tilt_alpha.clamp(0.0, 1.0);
 
         self.flow_k = self.flow_k.clamp(0.0, 1.0);
         self.spr_k = self.spr_k.clamp(10.0, 200.0);
@@ -141,7 +132,6 @@ struct FileConfig {
     pub fft_size: Option<usize>,
     pub tau_spec: Option<f32>,
     pub gate_db: Option<f32>,
-    pub tilt_alpha: Option<f32>,
     pub flow_k: Option<f32>,
     pub spr_k: Option<f32>,
     pub spr_zeta: Option<f32>,

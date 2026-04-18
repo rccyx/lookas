@@ -149,7 +149,7 @@ fn make_analyzer_with_filters(
 #[test]
 fn analyze_bands_returns_correct_length() {
     let mut sa = make_analyzer_with_filters(44_100.0, 2048, 32);
-    let targets = sa.analyze_bands(0.3, DT, true);
+    let targets = sa.analyze_bands(DT, true);
     assert_eq!(targets.len(), 32);
 }
 
@@ -158,10 +158,10 @@ fn analyze_bands_gate_closed_returns_zeros() {
     let mut sa = make_analyzer_with_filters(44_100.0, 2048, 16);
     // pump some energy in so eq_ref is warm.
     sa.spec_pow_smooth.fill(1.0);
-    sa.analyze_bands(0.3, DT, true);
+    sa.analyze_bands(DT, true);
 
     // now close the gate -- targets must all be 0.
-    let targets = sa.analyze_bands(0.3, DT, false);
+    let targets = sa.analyze_bands(DT, false);
     for (i, &v) in targets.iter().enumerate() {
         assert_eq!(
             v, 0.0,
@@ -176,33 +176,13 @@ fn analyze_bands_outputs_in_unit_range() {
     sa.spec_pow_smooth.fill(0.01);
 
     for _ in 0..30 {
-        let targets = sa.analyze_bands(0.3, DT, true);
+        let targets = sa.analyze_bands(DT, true);
         for (i, &v) in targets.iter().enumerate() {
             assert!(
                 (0.0..=1.0).contains(&v),
                 "band {i} target out of [0,1]: {v}"
             );
         }
-    }
-}
-
-#[test]
-fn analyze_bands_tilt_alpha_ignored() {
-    // tilt_alpha should have no
-    // effect on the output. Both calls should produce identical results.
-    let mut sa1 = make_analyzer_with_filters(44_100.0, 2048, 16);
-    let mut sa2 = make_analyzer_with_filters(44_100.0, 2048, 16);
-    sa1.spec_pow_smooth.fill(0.05);
-    sa2.spec_pow_smooth.fill(0.05);
-
-    let t1 = sa1.analyze_bands(0.0, DT, true);
-    let t2 = sa2.analyze_bands(1.0, DT, true);
-
-    for (i, (&a, &b)) in t1.iter().zip(t2.iter()).enumerate() {
-        assert!(
-            (a - b).abs() < 1e-6,
-            "band {i}: tilt_alpha should not affect output (got {a} vs {b})"
-        );
     }
 }
 
@@ -332,7 +312,7 @@ fn spring_critically_damped_no_overshoot() {
         }
     }
 
-    // Allow a very small overshoot margin due to discrete integration.
+    // allow a very small overshoot margin due to discrete integration.
     assert!(
         max_y < 0.52,
         "critically damped spring should not overshoot significantly: max_y = {max_y}"
