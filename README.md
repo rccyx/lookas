@@ -46,9 +46,13 @@ It runs a low-latency audio pipeline designed for visual stability first.
 
 Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
 
-Dynamic range is managed continuously using percentile tracking instead of fixed scaling. A noise gate suppresses background hiss, while frequency tilt prevents low or high bands from dominating the display.
+Frequency balance is handled by A-weighting (IEC 61672:2003), which models the human ear's actual sensitivity curve across frequency. This keeps the display proportional to what you hear rather than what a meter would measure.
 
-Animation is driven by a spring-damper model rather than raw amplitude changes. Energy diffuses laterally between neighboring bands, which produces a fluid motion, instead of twitchiness.
+Dynamic range is managed continuously using percentile tracking instead of fixed scaling. A noise gate suppresses background hiss.
+
+The spectrum uses asymmetric smoothing: energy attacks instantly so every transient is captured at full resolution, while the decay tail uses an exponential moving average for a smooth release.
+
+Animation is driven by a spring-damper model rather than raw amplitude changes. Energy diffuses laterally between neighboring bands, which produces a fluid motion instead of twitchiness.
 
 Rendering uses dense Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
 
@@ -61,11 +65,11 @@ On modern Linux, this yields a stable 60+ FPS experience with audio-to-visual la
 <br/>
 On the surface it may look like "just another CAVA clone/reinvent the wheel situation."
 
-**It’s not.**
+**It's not.**
 
 They may look similar in static screenshots. But they feel completely different in motion.
 
-Here’s the real difference:
+Here's the real difference:
 
 **TL;DR**  
 **CAVA** is the battle-tested, Swiss-army-knife visualizer (de facto standard, cross-platform, insanely configurable).
@@ -74,7 +78,7 @@ Here’s the real difference:
 
 ### Philosophy
 
-- **CAVA**: Makes pretty, responsive dancing bars that work everywhere with maximum flexibility. No deep claims about biology or physics. It’s aesthetic eye-candy tuned for low CPU and broad compatibility.
+- **CAVA**: Makes pretty, responsive dancing bars that work everywhere with maximum flexibility. No deep claims about biology or physics. It's aesthetic eye-candy tuned for low CPU and broad compatibility.
 
 - **Lookas**: Fixes the core issue that most visualizers feel disconnected from how humans actually _hear_ sound. Goal = biological/perceptual alignment + physical weight. Mel-scale + spring-damper + lateral energy diffusion = a visualization that has _intentional_ heft instead of jitter.
 
@@ -86,8 +90,8 @@ Here’s the real difference:
 | Windowing           | Hann window                                | Hann window                                                  |
 | Dynamic range       | Autosens + manual sensitivity              | **Continuous percentile tracking**                           |
 | Noise handling      | Basic noise reduction                      | **Explicit noise gate** (`gate_db`)                          |
-| Frequency balance   | Per-bar EQ (configurable)                  | **`tilt_alpha`** (compensates natural high-freq roll-off)    |
-| Temporal smoothing  | Quadratic gravity + integral EMA           | **Exponential smoothing** (`tau_spec`)                       |
+| Frequency balance   | Per-bar EQ (configurable)                  | **A-weighting (IEC 61672:2003)**                             |
+| Temporal smoothing  | Quadratic gravity + integral EMA           | **Asymmetric EMA** (instant attack, exponential release)     |
 | Animation model     | Height changes with gravity fall-off       | **Second-order spring-damper system** (`spr_k` + `spr_zeta`) |
 | Lateral interaction | None                                       | **Energy diffusion** (`flow_k`) between neighboring bars     |
 
@@ -109,7 +113,7 @@ Here’s the real difference:
 
 CAVA: Huge, heavily commented INI file. You can tweak literally everything (bars, sensitivity, cutoffs, EQ, colors, framerate, sleep timer, etc.). Live reload with SIGUSR1/SIGUSR2.
 
-Lookas: **Zero-config by default**. Tiny optional TOML (`~/.config/lookas.toml`) with only the perceptual knobs that actually matter. Environment-variable overrides. Keyboard controls built-in. Ships with sane defaults so it “just works”.
+Lookas: **Zero-config by default**. Tiny optional TOML (`~/.config/lookas.toml`) with only the perceptual knobs that actually matter. Environment-variable overrides. Keyboard controls built-in. Ships with sane defaults so it "just works".
 
 ### Performance & Feel
 
@@ -153,7 +157,7 @@ Lookas will just run.
 
 > [!IMPORTANT]
 > On very minimal Linux installs, you might be missing a couple of audio packages.
-> If Lookas fails to start or can’t capture audio, run:
+> If Lookas fails to start or can't capture audio, run:
 >
 > ```bash
 > sudo apt install -y libasound2-dev pulseaudio-utils
@@ -172,7 +176,7 @@ lookas
 ```
 
 It will attempt to start with system audio.  
-If system audio isn’t available, it automatically falls back to microphone input.
+If system audio isn't available, it automatically falls back to microphone input.
 
 ## Controls
 
@@ -218,7 +222,6 @@ fft_size = 2048
 target_fps_ms = 16
 tau_spec = 0.06
 gate_db = -55.0
-tilt_alpha = 0.30
 flow_k = 0.18
 spr_k = 60.0
 spr_zeta = 1.0
@@ -257,9 +260,9 @@ Setting this to 16 forces the visualizer to update roughly 60 times a second. Yo
 
 ### Spectrum Smoothing
 
-The `tau_spec` controls the time constant (τ), governing how rapidly the raw frequency data responds versus how much it relies on historical smoothing (read the underlying math [here.](https://ocw.mit.edu/courses/2-004-systems-modeling-and-control-ii-fall-2007/26a1e7459044ff2652c63c7c98138e4b_lecture06.pdf))
+The `tau_spec` controls the time constant (τ) governing how quickly the bars decay after a transient (read the underlying math [here.](https://ocw.mit.edu/courses/2-004-systems-modeling-and-control-ii-fall-2007/26a1e7459044ff2652c63c7c98138e4b_lecture06.pdf))
 
-A minimal value close to 0.01 makes the visualizer snappy and instantly reactive, but also highly jittery. A maximal value approaching 0.5 turns the bars sluggish and heavy, creating a long fade-out trail.
+Attacks are always instant regardless of this value. `tau_spec` only affects the release: how long the energy lingers before fading. A minimal value close to 0.01 makes the decay almost immediate, while a value approaching 0.20 creates a long, heavy fade-out trail.
 
 The default of 0.06 provides a polished decay that tracks fast transients without inducing visual fatigue.
 
@@ -268,18 +271,6 @@ The default of 0.06 provides a polished decay that tracks fast transients withou
 The `gate_db` defines the absolute silence threshold in decibels. This dictates the point at which background noise is entirely suppressed. If your environment or microphone has a persistent hiss, you would raise this to a less negative number, like -30.0, which enforces strict silence and only allows distinctly loud audio to register.
 
 If quiet nuances in your music are failing to appear on the visualizer, you drop this to a more negative extreme, something like -80.0, making the application highly sensitive. The 55.0 default is tuned to reject standard line noise while capturing quiet room ambiance.
-
-### Frequency Balance
-
-The `tilt_alpha` compensates for the natural roll-off of high frequencies in most audio mixes, so that the treble bars aren't perpetually dwarfed by the bass.
-
-This value is strictly between 0.0 and 1.0.
-
-At a minimum of 0.0, no spectral compensation is applied, which results in a physically accurate but visually lopsided spectrum where the left side dominates.
-
-Pushing it towards the maximum of 1.0 violently amplifies the high end.
-
-The 0.30 sweet spot applies just enough tilt to create an evenly distributed visual landscape across all frequency bands.
 
 ### Motion Coupling
 
