@@ -11,7 +11,7 @@ use lookas::{
     config::Config,
     dsp::{ema_tc, hann, prepare_fft_input_inplace},
     filterbank::build_filterbank,
-    render::{layout_for, render_blocks_vertical_frame},
+    render::{draw_blocks_vertical, layout_for},
     utils::scopeguard,
 };
 use realfft::RealFftPlanner;
@@ -33,7 +33,7 @@ fn main() -> Result<()> {
 
     let fmin: f32 = cfg.fmin;
     let fmax: f32 = cfg.fmax;
-    let target_fps_ms: u64 = cfg.target_fps_ms;
+    let frame_ms: u64 = cfg.frame_ms;
     let fft_size: usize = cfg.fft_size;
     let tau_spec: f32 = cfg.tau_spec;
     let gate_db: f32 = cfg.gate_db;
@@ -100,7 +100,7 @@ fn main() -> Result<()> {
     let mut fft_out = fft.make_output_vec();
 
     let mut last = Instant::now();
-    let target_dt = Duration::from_millis(target_fps_ms);
+    let target_dt = Duration::from_millis(frame_ms);
     let mut analyzer = SpectrumAnalyzer::new(half);
 
     let mut spec_pow = vec![0.0f32; half];
@@ -297,8 +297,10 @@ fn main() -> Result<()> {
 
         prepare_fft_input_inplace(tail, &window, &mut buf);
 
-        fft.process(&mut buf, &mut fft_out)
-            .expect("realfft process failed");
+        if let Err(e) = fft.process(&mut buf, &mut fft_out) {
+            eprintln!("[lookas] FFT processing error: {e}");
+            continue;
+        }
 
         let norm = (fft_size as f32) * (fft_size as f32);
         for i in 0..half {
@@ -308,9 +310,8 @@ fn main() -> Result<()> {
         }
 
         analyzer.update_spectrum(&spec_pow, tau_spec, dt_s);
-        let bars_target = analyzer.analyze_bands(dt_s, gate_open);
+        analyzer.analyze_bands(dt_s, gate_open);
         analyzer.apply_flow_and_spring(
-            &bars_target,
             &FlowSpringParams {
                 flow_k,
                 spr_k,
@@ -322,12 +323,12 @@ fn main() -> Result<()> {
 
         queue!(out, cursor::MoveTo(0, top_pad))?;
         frame.clear();
-        render_blocks_vertical_frame(
+        draw_blocks_vertical(
+            &mut frame,
             &analyzer.bars_y,
             w,
             h,
             &lay,
-            &mut frame,
         )?;
         out.write_all(&frame)?;
         out.flush()?;

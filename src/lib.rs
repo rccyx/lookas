@@ -15,7 +15,7 @@ pub use audio::{
 pub use buffer::SharedBuf;
 pub use dsp::{
     a_weighting, ema_tc, hann, hz_to_mel, mel_to_hz,
-    prepare_fft_input, prepare_fft_input_inplace,
+    prepare_fft_input_inplace,
 };
 pub use filterbank::{build_filterbank, Tri};
 pub use render::{draw_blocks_vertical, layout_for, Layout};

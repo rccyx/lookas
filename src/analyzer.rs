@@ -9,6 +9,12 @@ pub struct SpectrumAnalyzer {
     pub eq_ref: Vec<f32>,
     pub db_low: f32,
     pub db_high: f32,
+    /// holds raw dB values (phase 1), then a sorted copy for percentile tracking (phase 2).
+    sort_scratch: Vec<f32>,
+    /// holds dB values temporarily (phase 1–2), then final normalised bar targets (phase 3).
+    pub bars_target: Vec<f32>,
+    /// holds lateral-flow intermediate values for the spring-damper step.
+    flowed_scratch: Vec<f32>,
 }
 
 pub struct FlowSpringParams {
@@ -27,6 +33,9 @@ impl SpectrumAnalyzer {
             eq_ref: Vec::new(),
             db_low: -60.0,
             db_high: -20.0,
+            sort_scratch: Vec::new(),
+            bars_target: Vec::new(),
+            flowed_scratch: Vec::new(),
         }
     }
 
@@ -36,6 +45,9 @@ impl SpectrumAnalyzer {
             self.bars_y = vec![0.0; num_bars];
             self.bars_v = vec![0.0; num_bars];
             self.eq_ref = vec![1e-6; num_bars];
+            self.bars_target = vec![0.0; num_bars];
+            self.sort_scratch = vec![0.0; num_bars];
+            self.flowed_scratch = vec![0.0; num_bars];
         }
     }
 
@@ -50,7 +62,8 @@ impl SpectrumAnalyzer {
             let incoming = pow.max(1e-12);
             let prev = self.spec_pow_smooth[i];
 
-            // onstant attack if energy rose, snap immediately & smooth release if energy fell, decay via EMA.
+            // constant attack if energy rose, snap immediately;
+            // smooth release if energy fell, decay via EMA.
             self.spec_pow_smooth[i] = if incoming >= prev {
                 incoming
             } else {
@@ -59,15 +72,11 @@ impl SpectrumAnalyzer {
         }
     }
 
-    // compute per-band dB values and map them to normalised bar targets.
-    pub fn analyze_bands(
-        &mut self,
-        dt_s: f32,
-        gate_open: bool,
-    ) -> Vec<f32> {
+    /// compute per-band dB values and map them to normalised bar targets.
+    pub fn analyze_bands(&mut self, dt_s: f32, gate_open: bool) {
         let filters_len = self.filters.len();
-        let mut db_per_band = vec![0.0f32; filters_len];
 
+        // --- Phase 1 --- //
         for (i, tri) in self.filters.iter().enumerate() {
             let mut acc = 0.0f32;
             for &(idx, wgt) in &tri.taps {
@@ -77,8 +86,8 @@ impl SpectrumAnalyzer {
             }
             let amp = acc.sqrt();
 
-            // perceptually accurate frequency sensitivity
-            // curve that peaks at ~3-4 kHz and rolls off at both ends,
+            // Perceptually accurate frequency-sensitivity curve that peaks at
+            // ~3–4 kHz and rolls off at both ends.
             let amp_weighted = amp * a_weighting(tri.center_hz);
 
             self.eq_ref[i] =
@@ -86,60 +95,60 @@ impl SpectrumAnalyzer {
                     .max(1e-9);
             let rel = amp_weighted / self.eq_ref[i];
 
-            db_per_band[i] = 20.0 * rel.max(1e-12).log10();
+            self.bars_target[i] = 20.0 * rel.max(1e-12).log10();
         }
 
-        self.update_db_range(&db_per_band, dt_s);
+        // --- Phase 2 ---
+        self.sort_scratch[..filters_len]
+            .copy_from_slice(&self.bars_target[..filters_len]);
+        self.update_db_range(filters_len, dt_s);
 
+        // --- Phase 3 ---
         let low = self.db_low - 3.0;
         let high = self.db_high + 6.0;
         let range_inv = 1.0 / (high - low).max(12.0);
 
-        let mut bars_target = vec![0.0f32; filters_len];
         if gate_open {
             for i in 0..filters_len {
-                let mut v = (db_per_band[i] - low) * range_inv;
+                let mut v = (self.bars_target[i] - low) * range_inv;
                 v = v.clamp(0.0, 1.0).powf(0.85);
-                bars_target[i] = 1.0 - (1.0 - v).powf(1.6);
+                self.bars_target[i] = 1.0 - (1.0 - v).powf(1.6);
+            }
+        } else {
+            for t in &mut self.bars_target[..filters_len] {
+                *t = 0.0;
             }
         }
-
-        bars_target
     }
 
-    pub fn update_db_range(
-        &mut self,
-        db_per_band: &[f32],
-        dt_s: f32,
-    ) {
-        if db_per_band.is_empty() {
+    fn update_db_range(&mut self, len: usize, dt_s: f32) {
+        if len == 0 {
             return;
         }
 
-        let mut sorted = Vec::with_capacity(db_per_band.len());
-        sorted.extend_from_slice(db_per_band);
-        sorted.sort_by(|a, b| a.total_cmp(b));
+        // sort_scratch already holds a copy of the raw dB values (set by analyze_bands).
+        self.sort_scratch[..len].sort_by(|a, b| a.total_cmp(b));
 
-        let idx_low =
-            ((sorted.len() - 1) as f32 * 0.10).round() as usize;
-        let idx_high =
-            ((sorted.len() - 1) as f32 * 0.90).round() as usize;
+        let idx_low = ((len - 1) as f32 * 0.10).round() as usize;
+        let idx_high = ((len - 1) as f32 * 0.90).round() as usize;
 
-        let q10 = sorted[idx_low];
-        let q90 = sorted[idx_high];
+        let q10 = self.sort_scratch[idx_low];
+        let q90 = self.sort_scratch[idx_high];
 
         self.db_low = ema_tc(self.db_low, q10, 0.30, dt_s);
         self.db_high = ema_tc(self.db_high, q90, 0.50, dt_s);
     }
 
+    /// Advance bar positions by one frame using lateral energy diffusion followed
+    /// by a spring-damper integration.  Reads targets from `self.bars_target`
+    /// (written by `analyze_bands`)
     pub fn apply_flow_and_spring(
         &mut self,
-        bars_target: &[f32],
         params: &FlowSpringParams,
         dt_s: f32,
         gate_open: bool,
     ) {
-        let n = bars_target.len();
+        let n = self.bars_y.len();
         if n == 0 {
             return;
         }
@@ -158,8 +167,7 @@ impl SpectrumAnalyzer {
             return;
         }
 
-        let mut flowed = vec![0.0f32; n];
-
+        // lateral energy diffusion into pre-allocated scratch.
         for i in 0..n {
             let left = if i > 0 {
                 self.bars_y[i - 1]
@@ -173,13 +181,15 @@ impl SpectrumAnalyzer {
             };
             let flow =
                 params.flow_k * (left + right - 2.0 * self.bars_y[i]);
-            flowed[i] = (bars_target[i] + flow).clamp(0.0, 1.0);
+            self.flowed_scratch[i] =
+                (self.bars_target[i] + flow).clamp(0.0, 1.0);
         }
 
         let c = 2.0 * params.spr_k.sqrt() * params.spr_zeta;
 
-        for (i, &flowed_val) in flowed.iter().enumerate().take(n) {
-            let a = params.spr_k * (flowed_val - self.bars_y[i])
+        for i in 0..n {
+            let a = params.spr_k
+                * (self.flowed_scratch[i] - self.bars_y[i])
                 - c * self.bars_v[i];
             self.bars_v[i] += a * dt_s;
             self.bars_y[i] = (self.bars_y[i] + self.bars_v[i] * dt_s)

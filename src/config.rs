@@ -1,12 +1,16 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub fmin: f32,
     pub fmax: f32,
-    pub target_fps_ms: u64,
+    pub frame_ms: u64,
+    /// target frame duration in milliseconds (e.g. 16 ≈ 60 FPS).
     pub fft_size: usize,
     pub tau_spec: f32,
     pub gate_db: f32,
@@ -20,7 +24,7 @@ impl Config {
         Self {
             fmin: 30.0,
             fmax: 16_000.0,
-            target_fps_ms: 16,
+            frame_ms: 16,
             fft_size: 2048,
             tau_spec: 0.06,
             gate_db: -65.0,
@@ -50,8 +54,8 @@ impl Config {
         if let Some(v) = fc.fmax {
             self.fmax = v;
         }
-        if let Some(v) = fc.target_fps_ms {
-            self.target_fps_ms = v;
+        if let Some(v) = fc.frame_ms {
+            self.frame_ms = v;
         }
         if let Some(v) = fc.fft_size {
             self.fft_size = v;
@@ -80,8 +84,8 @@ impl Config {
         if let Some(v) = env_parse::<f32>("LOOKAS_FMAX") {
             self.fmax = v;
         }
-        if let Some(v) = env_parse::<u64>("LOOKAS_TARGET_FPS_MS") {
-            self.target_fps_ms = v;
+        if let Some(v) = env_parse::<u64>("LOOKAS_FRAME_MS") {
+            self.frame_ms = v;
         }
         if let Some(v) = env_parse::<usize>("LOOKAS_FFT_SIZE") {
             self.fft_size = v;
@@ -112,7 +116,7 @@ impl Config {
             self.fmax = 16_000.0;
         }
 
-        self.target_fps_ms = self.target_fps_ms.clamp(8, 50);
+        self.frame_ms = self.frame_ms.clamp(8, 50);
         self.fft_size = self.fft_size.clamp(512, 4096);
 
         self.tau_spec = self.tau_spec.clamp(0.01, 0.20);
@@ -128,7 +132,7 @@ impl Config {
 struct FileConfig {
     pub fmin: Option<f32>,
     pub fmax: Option<f32>,
-    pub target_fps_ms: Option<u64>,
+    pub frame_ms: Option<u64>,
     pub fft_size: Option<usize>,
     pub tau_spec: Option<f32>,
     pub gate_db: Option<f32>,
@@ -164,7 +168,7 @@ fn load_file_config() -> Result<Option<FileConfig>> {
     Ok(None)
 }
 
-fn read_toml(path: &PathBuf) -> Result<FileConfig> {
+fn read_toml(path: &Path) -> Result<FileConfig> {
     let s = fs::read_to_string(path).with_context(|| {
         format!("failed to read config: {}", path.display())
     })?;

@@ -37,7 +37,6 @@ fn v_partial(frac: f32) -> char {
     VBLOCKS[idx.min(8)]
 }
 
-// write n spaces without allocating a vec
 #[inline]
 fn write_spaces<W: Write>(
     out: &mut W,
@@ -72,7 +71,6 @@ pub fn draw_blocks_vertical<W: Write>(
     let per = BAR_W + GAP_W;
     let n = bars.len().min((cols / per).max(1));
 
-    // precompute heights
     let mut fulls = vec![0usize; n];
     let mut fracs = vec![0f32; n];
     for i in 0..n {
@@ -81,7 +79,6 @@ pub fn draw_blocks_vertical<W: Write>(
         fracs[i] = height - fulls[i] as f32;
     }
 
-    // top to bottom (but row logic stays bottom-based)
     for y in 0..rows {
         let row = rows - 1 - y;
         write_spaces(out, lay.left_pad as usize)?;
@@ -115,15 +112,4 @@ pub fn draw_blocks_vertical<W: Write>(
     }
 
     Ok(())
-}
-
-#[inline]
-pub fn render_blocks_vertical_frame(
-    bars: &[f32],
-    w: u16,
-    h: u16,
-    lay: &Layout,
-    frame: &mut Vec<u8>,
-) -> std::io::Result<()> {
-    draw_blocks_vertical(frame, bars, w, h, lay)
 }

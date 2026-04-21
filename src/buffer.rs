@@ -86,21 +86,8 @@ impl SharedBuf {
         let mut result = Vec::with_capacity(len);
 
         if self.filled {
-            unsafe {
-                let ptr = result.as_mut_ptr();
-                let first_chunk = self.data.len() - self.write_idx;
-                std::ptr::copy_nonoverlapping(
-                    self.data.as_ptr().add(self.write_idx),
-                    ptr,
-                    first_chunk,
-                );
-                std::ptr::copy_nonoverlapping(
-                    self.data.as_ptr(),
-                    ptr.add(first_chunk),
-                    self.write_idx,
-                );
-                result.set_len(len);
-            }
+            result.extend_from_slice(&self.data[self.write_idx..]);
+            result.extend_from_slice(&self.data[..self.write_idx]);
         } else {
             result.extend_from_slice(&self.data[..self.write_idx]);
         }

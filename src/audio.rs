@@ -3,8 +3,10 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Sample, SampleFormat, SizedSample, StreamConfig};
 
 use crate::buffer::SharedBuf;
-use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
+
+#[cfg(target_os = "linux")]
+use std::process::{Command, Stdio};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AudioMode {
@@ -147,7 +149,9 @@ where
     f32: cpal::FromSample<T>,
 {
     let ch = cfg.channels as usize;
-    let err_fn = |_| {};
+    let err_fn = |err: cpal::StreamError| {
+        eprintln!("[lookas] audio stream error: {err}");
+    };
 
     let stream = device.build_input_stream(
         &cfg,
@@ -288,10 +292,12 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
         {
             return Ok(hit.clone());
         }
-        anyhow::bail!("LOOKAS_SYS_DEVICE was set but no pulse source matched it");
+        anyhow::bail!(
+            "LOOKAS_SYS_DEVICE was set but no pulse source matched it"
+        );
     }
 
-    // 1, if anything is RUNNING, pick a RUNNING monitor.
+    // 1. If anything is RUNNING, pick a RUNNING monitor.
     if let Some(hit) = sources
         .iter()
         .filter(|s| s.name.contains(".monitor"))
@@ -300,7 +306,7 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
         return Ok(hit.clone());
     }
 
-    // 2, nothing RUNNING, prefer default sink monitor.
+    // 2. Nothing RUNNING —> prefer default sink monitor.
     if let Ok(sink) = pactl(&["get-default-sink"]) {
         if !sink.is_empty() {
             let mon = format!("{}.monitor", sink);
@@ -311,14 +317,16 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
         }
     }
 
-    // 3, last resort, any monitor.
+    // 3. Last resort —> any monitor.
     if let Some(hit) =
         sources.iter().find(|s| s.name.contains(".monitor"))
     {
         return Ok(hit.clone());
     }
 
-    anyhow::bail!("no monitor source found (no .monitor sources in pactl list short sources)")
+    anyhow::bail!(
+        "no monitor source found (no .monitor sources in pactl list short sources)"
+    )
 }
 
 #[cfg(target_os = "linux")]
@@ -338,7 +346,6 @@ fn start_system(
     let channels = src.channels.max(1);
     let use_rate = src.rate.clamp(8_000, 192_000).max(rate);
 
-    // low-latency defaults
     let latency_ms = env_u32("LOOKAS_SYS_LATENCY_MS").unwrap_or(15);
     let process_ms = env_u32("LOOKAS_SYS_PROCESS_MS").unwrap_or(5);
 
@@ -416,6 +423,14 @@ fn start_system(
         ),
         sample_rate: use_rate,
     })
+}
+
+#[cfg(not(target_os = "linux"))]
+fn start_system(
+    _shared: Arc<Mutex<SharedBuf>>,
+    _rate: u32,
+) -> Result<SystemHandle> {
+    anyhow::bail!("system audio capture is only supported on Linux")
 }
 
 impl Drop for SystemHandle {
