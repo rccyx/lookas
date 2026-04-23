@@ -17,11 +17,29 @@
 
 ## Overview
 
+### Ϟ
+
 <p align="center">
   <a href="https://www.youtube.com/watch?v=lVDFpoCkvh8">
     <img src="./assets/demo.gif" alt="Lookas Demo" width="100%">
   </a>
 </p>
+
+### Ϝ
+
+<div align="center">
+  <video title"demo" src="https://github.com/user-attachments/assets/d46f74ad-77d3-4932-b02e-ff91df87d26b" width="100%" controls>
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+### Ϡ
+
+<div align="center">
+  <video  title"demo" src="https://github.com/user-attachments/assets/6bc410a6-7cf4-4fd1-ae76-735b41d96f8a" width="100%" controls>
+    Your browser does not support the video tag.
+  </video>
+</div>
 
 ## Explainers
 
