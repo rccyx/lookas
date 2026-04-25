@@ -1,18 +1,18 @@
 <h1 align="center">Lookas</h1>
-
 <p align="center">
   <a href="https://www.kernel.org">
-    <img src="https://img.shields.io/badge/Platform-Linux-black?logo=linux&logoColor=white&style=for-the-badge" alt="Platform: Linux"/>
-  </a>
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-blue?logo=open-source-initiative&logoColor=white&style=for-the-badge" alt="License: MIT"/>
+    <img src="https://img.shields.io/badge/Platform-Linux-black?logo=linux&logoColor=white&style=for-the-badge" alt="Platform: Linux" />
   </a>
   <a href="https://crates.io/crates/lookas">
-    <img src="https://img.shields.io/crates/v/lookas?color=orange&logo=rust&style=for-the-badge" alt="Crates.io"/>
+    <img src="https://img.shields.io/crates/v/lookas?color=black&logo=rust&logoColor=white&style=for-the-badge" alt="Crates.io" />
+  </a>
+  <a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/badge/License-MIT-black?logo=open-source-initiative&logoColor=white&style=for-the-badge" alt="License: MIT" />
   </a>
 </p>
+
 <p align="center">
-  Perception aligned terminal-based audio spectrum visualizer.
+  <strong>Perception aligned terminal-based audio spectrum visualizer.</strong>
 </p>
 
 ## Overview
@@ -146,10 +146,10 @@ Lookas gives you bars that have **mass, momentum, and perceptual weight**, they 
 
 ## Comparison
 
-Both Lookas ( ↓ ) and CAVA ( ↑ ) are running on default configs
+Both Lookas ( ← ) and CAVA ( → ) are running on default configs
 
 <div align="center">
-  <video src="https://github.com/user-attachments/assets/557e377d-6eb3-47dc-ae94-8e507a2337ad" width="100%" controls>
+  <video src="https://github.com/user-attachments/assets/e4c3e0f3-a24a-4725-917d-5440c12f757a" width="100%" controls>
     Your browser does not support the video tag.
   </video>
 </div>
