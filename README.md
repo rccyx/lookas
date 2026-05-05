@@ -41,6 +41,17 @@
   </video>
 </div>
 
+### λ
+<div align="center">
+  <video  title"demo" src="https://github.com/user-attachments/assets/3affab22-9bd6-44f0-9a28-a6642500fab2" width="100%" controls>
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+
+
+
+
 ## Explainers
 
 <details> <summary><b>What</b></summary>
@@ -79,7 +90,7 @@ On modern Linux, this yields a stable 60+ FPS experience with audio-to-visual la
 </details>
 
 <details>
-<summary><strong>Why not use CAVA?</strong></summary>
+<summary><strong>How is this different than CAVA?</strong></summary>
 <br/>
 On the surface it may look like "just another CAVA clone/reinvent the wheel situation."
 
@@ -149,7 +160,7 @@ Lookas gives you bars that have **mass, momentum, and perceptual weight**, they 
 Both Lookas ( ← ) and CAVA ( → ) are running on default configs
 
 <div align="center">
-  <video src="https://github.com/user-attachments/assets/e4c3e0f3-a24a-4725-917d-5440c12f757a" width="100%" controls>
+  <video src="https://github.com/user-attachments/assets/a27a3bdb-294d-4fc9-95a8-aca73a85adfe" width="100%" controls>
     Your browser does not support the video tag.
   </video>
 </div>
