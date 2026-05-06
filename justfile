@@ -19,7 +19,14 @@ alias t:= test
     cargo build --release
 
 @clippy:
-    cargo clippy -- -D warnings -A incomplete_features -W clippy::dbg_macro -W clippy::print_stdout
-
+    cargo clippy --all-targets --all-features -- \
+    -D warnings \
+    -D clippy::pedantic \
+    -D clippy::nursery \
+    -D clippy::cargo \
+    -W clippy::unwrap_used \
+    -W clippy::expect_used \
+    -W clippy::todo \
+    -A incomplete_features
 @test:
     cargo test
