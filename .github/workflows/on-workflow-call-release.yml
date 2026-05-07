@@ -11,11 +11,9 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v6
 
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install ALSA development libraries
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: ./.github/actions/setup
+        with:
+          cache: "false"
 
       - name: Publish to crates.io
         env:

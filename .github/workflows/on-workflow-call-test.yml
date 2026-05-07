@@ -9,15 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Install system audio deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev pulseaudio-utils
+      - uses: ./.github/actions/setup
 
       - name: Run tests
         run: cargo test --all-features --workspace

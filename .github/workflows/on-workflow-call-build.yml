@@ -21,20 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Rust toolchain
-        # toolchain input is supported on @master, not @stable
-        uses: dtolnay/rust-toolchain@master
+      - uses: ./.github/actions/setup
         with:
           toolchain: ${{ matrix.toolchain }}
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Install Linux audio deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libasound2-dev \
-            pulseaudio-utils
 
       - name: Build release
         run: cargo build --release

@@ -16,16 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install system deps (ALSA required by cpal/alsa-sys)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
+      - uses: ./.github/actions/setup
+        with:
+          cache: "false"
+          packages: jq
 
       - name: Check crates.io version
         id: check
