@@ -60,11 +60,9 @@ Lookas captures **microphone input, system audio, or both**, converts the signal
 <details> <summary><b>How</b></summary>
 <br/>
 
-It runs a low-latency audio pipeline designed for visual stability first.
-
 Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
 
-Frequency balance is handled by A-weighting (IEC 61672:2003), which models the human ear's actual sensitivity curve across frequency. This keeps the display proportional to what you hear rather than what a meter would measure.
+Frequency balance is handled by [A-weighting](http://cdn.standards.iteh.ai/samples/10880/e138f40fd9e84af8906910f4b6d8a4df/IEC-61672-2-2003.pdf) , which models the human ear's actual sensitivity curve across frequency. This keeps the display proportional to what you hear rather than what a meter would measure.
 
 Dynamic range is managed continuously using percentile tracking instead of fixed scaling. A noise gate suppresses background hiss.
 
@@ -78,72 +76,25 @@ On modern Linux, this yields a stable 60+ FPS experience with audio-to-visual la
 
 </details>
 
-<details>
-<summary><strong>How is this different than CAVA?</strong></summary>
+## CAVA Comparison
+
+You're probably used to CAVA and similar tools.
+
+<details><summary><b>How both differ?</b></summary>
+
 <br/>
-On the surface it may look like just another CAVA clone/reinvent the wheel situation.
 
-**It's not.**
-
-They may look similar in static screenshots. But they feel completely different in motion.
-
-Here's the difference:
-
-**CAVA** is the battle-tested, Swiss-army-knife visualizer (de facto standard, cross-platform, insanely configurable).
-
-**Lookas** is opinionated, perception-first tool that deliberately throws away raw linear-FFT twitchiness and replaces it with human-hearing-aligned physics so the bars _feel_ like real sound instead of a nervous digital meter.
-
-### Philosophy
-
-- **CAVA**: Makes pretty, responsive dancing bars that work everywhere with maximum flexibility. No deep claims about biology or physics.
-
-- **Lookas**: Fixes the core issue that most visualizers feel disconnected from how humans actually _hear_ sound. Goal = biological/perceptual alignment + physical weight. Mel-scale + spring-damper + lateral energy diffusion = a visualization that has _intentional_ heft instead of jitter.
-
-### Audio Pipeline & Physics Difference
-
-| Aspect              | CAVA (logarithmic FFTW)                    | Lookas (mel-scale + real physics)                            |
-| ------------------- | ------------------------------------------ | ------------------------------------------------------------ |
-| Frequency mapping   | Logarithmic binning (more bass resolution) | **Mel-scale filterbank** (matches human loudness perception) |
-| Windowing           | Hann window                                | Hann window                                                  |
-| Dynamic range       | Autosens + manual sensitivity              | **Continuous percentile tracking**                           |
-| Noise handling      | Basic noise reduction                      | **Explicit noise gate** (`gate_db`)                          |
-| Frequency balance   | Per-bar EQ (configurable)                  | **A-weighting (IEC 61672:2003)**                             |
-| Temporal smoothing  | Quadratic gravity + integral EMA           | **Asymmetric EMA** (instant attack, exponential release)     |
-| Animation model     | Height changes with gravity fall-off       | **Second-order spring-damper system** (`spr_k` + `spr_zeta`) |
-| Lateral interaction | None                                       | **Energy diffusion** (`flow_k`) between neighboring bars     |
-
-### Input & Output
-
-**Input**
-
-- CAVA: Extremely flexible (PipeWire, PulseAudio, ALSA loopback, JACK, FIFO/MPD, Sndio, OSS, PortAudio, shared memory, Windows default). You can wire almost anything.
-
-- Lookas: Deliberately minimal: Mic (1), System loopback (2), or Mix (3). Hotkey swap + auto-fallback. Low-latency pipeline tuned for stability, not maximum flexibility. Linux-only (Rust-only for now). Extended in future versions.
-
-**Output**
-
-- CAVA: Terminal (noncurses/ncurses), **SDL desktop window with GLSL shaders**, raw data (pipe to anything). Multiple orientations, bar widths, gradients, etc.
-
-- Lookas: Terminal-only. Optimized Unicode-block renderer (single clear per frame + contiguous writes -> zero flicker, buttery-smooth gradients).
-
-### Config & User Experience
-
-CAVA: Huge, heavily commented INI file. You can tweak everything (bars, sensitivity, cutoffs, EQ, colors, framerate, sleep timer, etc.). Live reload with SIGUSR1/SIGUSR2.
-
-Lookas: **Zero-config by default**. Tiny optional TOML (`~/.config/lookas.toml`) with only the perceptual knobs and env vars overrides. Keyboard controls built-in. Ships with sane defaults so it just works.
-
-### Performance & Feel
-
-Both run 60+ FPS on modern hardware and are very light on CPU.  
-The difference is in the **_feel_**.
-
-CAVA gives you crisp, responsive dancing bars.
-
-Lookas gives you bars that have **mass, momentum, and perceptual weight**, they move like real sound propagating through air.
+| Feature         | CAVA              | Lookas                   |
+| :-------------- | :---------------- | :----------------------- |
+| **Mapping**     | Logarithmic       | Mel-scale                |
+| **Dynamics**    | Autosens / Manual | Percentile tracking      |
+| **Noise**       | Basic reduction   | Explicit noise gate      |
+| **Balance**     | Per-bar EQ        | A-weighting              |
+| **Smoothing**   | Quadratic gravity | Asymmetric EMA           |
+| **Physics**     | Gravity fall-off  | Spring-damper system     |
+| **Interaction** | None              | Lateral energy diffusion |
 
 </details>
-
-## Comparison
 
 Both Lookas ( ← ) and CAVA ( → ) are running on default configs
 
