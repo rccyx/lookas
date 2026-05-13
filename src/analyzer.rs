@@ -24,6 +24,7 @@ pub struct FlowSpringParams {
 }
 
 impl SpectrumAnalyzer {
+    #[must_use]
     pub fn new(half_fft_size: usize) -> Self {
         Self {
             spec_pow_smooth: vec![0.0; half_fft_size],
@@ -60,19 +61,21 @@ impl SpectrumAnalyzer {
         let len = self.spec_pow_smooth.len().min(spec_pow.len());
         for (i, &pow) in spec_pow.iter().enumerate().take(len) {
             let incoming = pow.max(1e-12);
-            let prev = self.spec_pow_smooth[i];
-
-            // constant attack if energy rose, snap immediately;
-            // smooth release if energy fell, decay via EMA.
-            self.spec_pow_smooth[i] = if incoming >= prev {
-                incoming
-            } else {
-                ema_tc(prev, incoming, tau_spec, dt_s)
-            };
+            if let Some(prev_val) = self.spec_pow_smooth.get_mut(i) {
+                let prev = *prev_val;
+                // constant attack if energy rose, snap immediately;
+                // smooth release if energy fell, decay via EMA.
+                *prev_val = if incoming >= prev {
+                    incoming
+                } else {
+                    ema_tc(prev, incoming, tau_spec, dt_s)
+                };
+            }
         }
     }
 
     /// compute per-band dB values and map them to normalised bar targets.
+    #[allow(clippy::cognitive_complexity)]
     pub fn analyze_bands(&mut self, dt_s: f32, gate_open: bool) {
         let filters_len = self.filters.len();
 
@@ -80,8 +83,8 @@ impl SpectrumAnalyzer {
         for (i, tri) in self.filters.iter().enumerate() {
             let mut acc = 0.0f32;
             for &(idx, wgt) in &tri.taps {
-                if idx < self.spec_pow_smooth.len() {
-                    acc += self.spec_pow_smooth[idx] * wgt;
+                if let Some(&val) = self.spec_pow_smooth.get(idx) {
+                    acc += val * wgt;
                 }
             }
             let amp = acc.sqrt();
@@ -90,17 +93,22 @@ impl SpectrumAnalyzer {
             // ~3–4 kHz and rolls off at both ends.
             let amp_weighted = amp * a_weighting(tri.center_hz);
 
-            self.eq_ref[i] =
-                ema_tc(self.eq_ref[i], amp_weighted, 6.0, dt_s)
-                    .max(1e-9);
-            let rel = amp_weighted / self.eq_ref[i];
-
-            self.bars_target[i] = 20.0 * rel.max(1e-12).log10();
+            if let Some(eq) = self.eq_ref.get_mut(i) {
+                *eq = ema_tc(*eq, amp_weighted, 6.0, dt_s).max(1e-9);
+                let rel = amp_weighted / *eq;
+                if let Some(target) = self.bars_target.get_mut(i) {
+                    *target = 20.0 * rel.max(1e-12).log10();
+                }
+            }
         }
 
         // --- Phase 2 ---
-        self.sort_scratch[..filters_len]
-            .copy_from_slice(&self.bars_target[..filters_len]);
+        if let (Some(dst), Some(src)) = (
+            self.sort_scratch.get_mut(..filters_len),
+            self.bars_target.get(..filters_len),
+        ) {
+            dst.copy_from_slice(src);
+        }
         self.update_db_range(filters_len, dt_s);
 
         // --- Phase 3 ---
@@ -110,38 +118,55 @@ impl SpectrumAnalyzer {
 
         if gate_open {
             for i in 0..filters_len {
-                let mut v = (self.bars_target[i] - low) * range_inv;
-                v = v.clamp(0.0, 1.0).powf(0.85);
-                self.bars_target[i] = 1.0 - (1.0 - v).powf(1.6);
+                if let Some(target) = self.bars_target.get_mut(i) {
+                    let mut v = (*target - low) * range_inv;
+                    v = v.clamp(0.0, 1.0).powf(0.85);
+                    *target = 1.0 - (1.0 - v).powf(1.6);
+                }
             }
-        } else {
-            for t in &mut self.bars_target[..filters_len] {
+        } else if let Some(targets) =
+            self.bars_target.get_mut(..filters_len)
+        {
+            for t in targets {
                 *t = 0.0;
             }
         }
     }
 
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
     fn update_db_range(&mut self, len: usize, dt_s: f32) {
         if len == 0 {
             return;
         }
 
         // sort_scratch already holds a copy of the raw dB values (set by analyze_bands).
-        self.sort_scratch[..len].sort_by(|a, b| a.total_cmp(b));
+        if let Some(slice) = self.sort_scratch.get_mut(..len) {
+            slice.sort_by(f32::total_cmp);
+        }
 
-        let idx_low = ((len - 1) as f32 * 0.10).round() as usize;
-        let idx_high = ((len - 1) as f32 * 0.90).round() as usize;
+        let len_f = len as f32;
+        let idx_low =
+            ((len_f - 1.0) * 0.10).round().max(0.0) as usize;
+        let idx_high =
+            ((len_f - 1.0) * 0.90).round().max(0.0) as usize;
 
-        let q10 = self.sort_scratch[idx_low];
-        let q90 = self.sort_scratch[idx_high];
-
-        self.db_low = ema_tc(self.db_low, q10, 0.30, dt_s);
-        self.db_high = ema_tc(self.db_high, q90, 0.50, dt_s);
+        if let (Some(&q10), Some(&q90)) = (
+            self.sort_scratch.get(idx_low),
+            self.sort_scratch.get(idx_high),
+        ) {
+            self.db_low = ema_tc(self.db_low, q10, 0.30, dt_s);
+            self.db_high = ema_tc(self.db_high, q90, 0.50, dt_s);
+        }
     }
 
     /// Advance bar positions by one frame using lateral energy diffusion followed
     /// by a spring-damper integration.  Reads targets from `self.bars_target`
     /// (written by `analyze_bands`)
+    #[allow(clippy::cognitive_complexity)]
     pub fn apply_flow_and_spring(
         &mut self,
         params: &FlowSpringParams,
@@ -158,10 +183,14 @@ impl SpectrumAnalyzer {
             let a = (-dt_s / tau_silence).exp();
 
             for i in 0..n {
-                self.bars_y[i] *= a;
-                self.bars_v[i] = 0.0;
-                if self.bars_y[i] < 0.001 {
-                    self.bars_y[i] = 0.0;
+                if let Some(y) = self.bars_y.get_mut(i) {
+                    *y *= a;
+                    if *y < 0.001 {
+                        *y = 0.0;
+                    }
+                }
+                if let Some(v) = self.bars_v.get_mut(i) {
+                    *v = 0.0;
                 }
             }
             return;
@@ -169,31 +198,38 @@ impl SpectrumAnalyzer {
 
         // lateral energy diffusion into pre-allocated scratch.
         for i in 0..n {
+            let cur = *self.bars_y.get(i).unwrap_or(&0.0);
             let left = if i > 0 {
-                self.bars_y[i - 1]
+                *self.bars_y.get(i.saturating_sub(1)).unwrap_or(&cur)
             } else {
-                self.bars_y[i]
+                cur
             };
-            let right = if i + 1 < n {
-                self.bars_y[i + 1]
+            let right = if i.saturating_add(1) < n {
+                *self.bars_y.get(i.saturating_add(1)).unwrap_or(&cur)
             } else {
-                self.bars_y[i]
+                cur
             };
             let flow =
-                params.flow_k * (left + right - 2.0 * self.bars_y[i]);
-            self.flowed_scratch[i] =
-                (self.bars_target[i] + flow).clamp(0.0, 1.0);
+                params.flow_k * 2.0f32.mul_add(-cur, left + right);
+            if let Some(scratch) = self.flowed_scratch.get_mut(i) {
+                *scratch = (*self.bars_target.get(i).unwrap_or(&0.0)
+                    + flow)
+                    .clamp(0.0, 1.0);
+            }
         }
 
         let c = 2.0 * params.spr_k.sqrt() * params.spr_zeta;
 
         for i in 0..n {
-            let a = params.spr_k
-                * (self.flowed_scratch[i] - self.bars_y[i])
-                - c * self.bars_v[i];
-            self.bars_v[i] += a * dt_s;
-            self.bars_y[i] = (self.bars_y[i] + self.bars_v[i] * dt_s)
-                .clamp(0.0, 1.0);
+            if let (Some(y), Some(v), Some(scratch)) = (
+                self.bars_y.get_mut(i),
+                self.bars_v.get_mut(i),
+                self.flowed_scratch.get(i),
+            ) {
+                let a = params.spr_k.mul_add(scratch - *y, -(c * *v));
+                *v = a.mul_add(dt_s, *v);
+                *y = (*v).mul_add(dt_s, *y).clamp(0.0, 1.0);
+            }
         }
     }
 }

@@ -10,7 +10,7 @@ use lookas::{
     buffer::SharedBuf,
     config::Config,
     dsp::{ema_tc, hann, prepare_fft_input_inplace},
-    filterbank::build_filterbank,
+    filterbank::{build_filterbank, FilterbankParams},
     render::{draw_blocks_vertical, layout_for},
     utils::scopeguard,
 };
@@ -28,6 +28,7 @@ fn reset_buf(shared: &Arc<Mutex<SharedBuf>>, cap: usize) {
     }
 }
 
+#[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
 fn main() -> Result<()> {
     let cfg = Config::load()?;
 
@@ -55,7 +56,7 @@ fn main() -> Result<()> {
     )?;
     out.flush()?;
 
-    let _cleanup = scopeguard::guard((), |_| {
+    let _cleanup = scopeguard::guard((), |()| {
         let mut out = stdout();
         let _ = execute!(
             out,
@@ -65,6 +66,7 @@ fn main() -> Result<()> {
         let _ = terminal::disable_raw_mode();
     });
 
+    #[allow(clippy::arithmetic_side_effects)]
     let ring_cap =
         ((48_000usize / 10).max(fft_size * 3)).max(fft_size * 6);
     let mic_shared = Arc::new(Mutex::new(SharedBuf::new(ring_cap)));
@@ -88,6 +90,7 @@ fn main() -> Result<()> {
     }
 
     let mut sr_u32 = audio.info().sample_rate;
+    #[allow(clippy::cast_precision_loss)]
     let mut sr = sr_u32 as f32;
 
     let window = hann(fft_size);
@@ -111,6 +114,7 @@ fn main() -> Result<()> {
 
     let (mut w, mut h) = terminal::size()?;
     let mut lay = layout_for(w, h, top_pad);
+    #[allow(clippy::arithmetic_side_effects)]
     let mut frame: Vec<u8> = Vec::with_capacity(
         (w as usize * h as usize * 4).max(64 * 1024),
     );
@@ -137,10 +141,10 @@ fn main() -> Result<()> {
                     layout_dirty = true;
                 }
                 event::Event::Key(k) => {
-                    use crossterm::event::KeyCode::*;
+                    use crossterm::event::KeyCode;
                     match k.code {
-                        Char('q') => return Ok(()),
-                        Char('1') => {
+                        KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Char('1') => {
                             reset_buf(&mic_shared, ring_cap);
                             reset_buf(&sys_shared, ring_cap);
                             audio.start(
@@ -149,7 +153,7 @@ fn main() -> Result<()> {
                                 sys_shared.clone(),
                             )?;
                         }
-                        Char('2') => {
+                        KeyCode::Char('2') => {
                             reset_buf(&mic_shared, ring_cap);
                             reset_buf(&sys_shared, ring_cap);
                             audio.start(
@@ -158,7 +162,7 @@ fn main() -> Result<()> {
                                 sys_shared.clone(),
                             )?;
                         }
-                        Char('3') => {
+                        KeyCode::Char('3') => {
                             reset_buf(&mic_shared, ring_cap);
                             reset_buf(&sys_shared, ring_cap);
                             audio.start(
@@ -167,7 +171,7 @@ fn main() -> Result<()> {
                                 sys_shared.clone(),
                             )?;
                         }
-                        Char('r') => {
+                        KeyCode::Char('r') => {
                             reset_buf(&mic_shared, ring_cap);
                             reset_buf(&sys_shared, ring_cap);
                             audio.reset(
@@ -181,7 +185,10 @@ fn main() -> Result<()> {
                     let new_sr = audio.info().sample_rate;
                     if new_sr != sr_u32 {
                         sr_u32 = new_sr;
-                        sr = sr_u32 as f32;
+                        #[allow(clippy::cast_precision_loss)]
+                        {
+                            sr = sr_u32 as f32;
+                        }
                         analyzer.filters.clear();
                     }
 
@@ -196,7 +203,9 @@ fn main() -> Result<()> {
         let now = Instant::now();
         let dt = now.duration_since(last);
         if dt < target_dt {
-            thread::sleep(target_dt - dt);
+            if let Some(diff) = target_dt.checked_sub(dt) {
+                thread::sleep(diff);
+            }
         }
         let now = Instant::now();
         let dt_s = now.duration_since(last).as_secs_f32();
@@ -211,27 +220,23 @@ fn main() -> Result<()> {
         let desired_bars = lay.bars;
 
         if analyzer.filters.len() != desired_bars {
-            analyzer.filters = build_filterbank(
+            analyzer.filters = build_filterbank(FilterbankParams {
                 sr,
                 fft_size,
-                desired_bars,
+                bands: desired_bars,
                 fmin,
                 fmax,
-            );
+            });
             analyzer.resize(desired_bars);
         }
 
-        let mic_ok = mic_shared
-            .try_lock()
-            .ok()
-            .map(|b| b.copy_last_n_into(fft_size, &mut mic_tail))
-            .unwrap_or(false);
+        let mic_ok = mic_shared.try_lock().ok().is_some_and(|b| {
+            b.copy_last_n_into(fft_size, &mut mic_tail)
+        });
 
-        let sys_ok = sys_shared
-            .try_lock()
-            .ok()
-            .map(|b| b.copy_last_n_into(fft_size, &mut sys_tail))
-            .unwrap_or(false);
+        let sys_ok = sys_shared.try_lock().ok().is_some_and(|b| {
+            b.copy_last_n_into(fft_size, &mut sys_tail)
+        });
 
         let tail: &[f32] = match audio.mode() {
             AudioMode::Mic => {
@@ -250,6 +255,7 @@ fn main() -> Result<()> {
                 if !mic_ok || !sys_ok {
                     continue;
                 }
+                #[allow(clippy::indexing_slicing)]
                 for i in 0..fft_size {
                     mix[i] = (mic_tail[i] + sys_tail[i]) * 0.5;
                 }
@@ -261,7 +267,10 @@ fn main() -> Result<()> {
         for &x in tail {
             rms += x * x;
         }
-        rms /= fft_size as f32;
+        #[allow(clippy::cast_precision_loss)]
+        {
+            rms /= fft_size as f32;
+        }
 
         if gate_pow_ema == 0.0 {
             gate_pow_ema = rms;
@@ -302,11 +311,13 @@ fn main() -> Result<()> {
             continue;
         }
 
+        #[allow(clippy::cast_precision_loss)]
         let norm = (fft_size as f32) * (fft_size as f32);
+        #[allow(clippy::indexing_slicing)]
         for i in 0..half {
             let re = fft_out[i].re;
             let im = fft_out[i].im;
-            spec_pow[i] = (re * re + im * im) / norm;
+            spec_pow[i] = re.mul_add(re, im * im) / norm;
         }
 
         analyzer.update_spectrum(&spec_pow, tau_spec, dt_s);

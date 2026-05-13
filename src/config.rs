@@ -20,7 +20,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn defaults() -> Self {
+    #[must_use]
+    pub const fn defaults() -> Self {
         Self {
             fmin: 30.0,
             fmax: 16_000.0,
@@ -38,7 +39,7 @@ impl Config {
         let mut cfg = Self::defaults();
 
         if let Some(file_cfg) = load_file_config()? {
-            cfg.apply_file(file_cfg);
+            cfg.apply_file(&file_cfg);
         }
 
         cfg.apply_env();
@@ -47,7 +48,7 @@ impl Config {
         Ok(cfg)
     }
 
-    fn apply_file(&mut self, fc: FileConfig) {
+    fn apply_file(&mut self, fc: &FileConfig) {
         if let Some(v) = fc.fmin {
             self.fmin = v;
         }
@@ -128,7 +129,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone, Copy)]
 struct FileConfig {
     pub fmin: Option<f32>,
     pub fmax: Option<f32>,
@@ -141,10 +142,12 @@ struct FileConfig {
     pub spr_zeta: Option<f32>,
 }
 
+#[allow(clippy::disallowed_methods)]
 fn env_parse<T: std::str::FromStr>(name: &str) -> Option<T> {
     env::var(name).ok().and_then(|v| v.parse::<T>().ok())
 }
 
+#[allow(clippy::disallowed_methods)]
 fn load_file_config() -> Result<Option<FileConfig>> {
     if let Ok(p) = env::var("LOOKAS_CONFIG") {
         let path = PathBuf::from(p);

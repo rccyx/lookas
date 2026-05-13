@@ -1,5 +1,6 @@
 pub mod scopeguard {
-    pub fn guard<T, F: FnOnce(T)>(v: T, f: F) -> Guard<T, F> {
+    #[must_use]
+    pub const fn guard<T, F: FnOnce(T)>(v: T, f: F) -> Guard<T, F> {
         Guard {
             v: Some(v),
             f: Some(f),

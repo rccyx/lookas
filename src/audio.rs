@@ -34,6 +34,7 @@ impl Default for AudioController {
 }
 
 impl AudioController {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             mode: AudioMode::Mic,
@@ -46,11 +47,13 @@ impl AudioController {
         }
     }
 
-    pub fn mode(&self) -> AudioMode {
+    #[must_use]
+    pub const fn mode(&self) -> AudioMode {
         self.mode
     }
 
-    pub fn info(&self) -> &CaptureInfo {
+    #[must_use]
+    pub const fn info(&self) -> &CaptureInfo {
         &self.info
     }
 
@@ -116,6 +119,7 @@ impl AudioController {
 pub fn pick_input_device() -> Result<Device> {
     let host = cpal::default_host();
 
+    #[allow(clippy::disallowed_methods)]
     if let Ok(filter) = std::env::var("LOOKAS_DEVICE") {
         let filter = filter.to_lowercase();
         if let Ok(devices) = host.input_devices() {
@@ -140,8 +144,8 @@ pub fn best_config_for(device: &Device) -> Result<StreamConfig> {
 }
 
 pub fn build_stream<T>(
-    device: Device,
-    cfg: StreamConfig,
+    device: &Device,
+    cfg: &StreamConfig,
     shared: Arc<Mutex<SharedBuf>>,
 ) -> Result<cpal::Stream>
 where
@@ -154,7 +158,7 @@ where
     };
 
     let stream = device.build_input_stream(
-        &cfg,
+        cfg,
         move |data: &[T], _| {
             if let Ok(mut buf) = shared.try_lock() {
                 for frame in data.chunks_exact(ch) {
@@ -162,6 +166,7 @@ where
                     for &s in frame {
                         acc += s.to_sample::<f32>();
                     }
+                    #[allow(clippy::cast_precision_loss)]
                     buf.push(acc / ch as f32);
                 }
             }
@@ -188,13 +193,13 @@ fn start_mic(shared: Arc<Mutex<SharedBuf>>) -> Result<MicHandle> {
     let stream = match device.default_input_config()?.sample_format()
     {
         SampleFormat::F32 => {
-            build_stream::<f32>(device, cfg.clone(), shared)?
+            build_stream::<f32>(&device, &cfg, shared)?
         }
         SampleFormat::I16 => {
-            build_stream::<i16>(device, cfg.clone(), shared)?
+            build_stream::<i16>(&device, &cfg, shared)?
         }
         SampleFormat::U16 => {
-            build_stream::<u16>(device, cfg.clone(), shared)?
+            build_stream::<u16>(&device, &cfg, shared)?
         }
         _ => anyhow::bail!("Unsupported sample format"),
     };
@@ -255,10 +260,12 @@ fn pulse_sources() -> Result<Vec<SourceInfo>> {
             continue;
         }
 
-        let name = parts[1].to_string();
-        let ch_tok = parts[4];
-        let rate_tok = parts[5];
-        let state = parts[6].to_string();
+        let name =
+            parts.get(1).map_or_else(String::new, |&x| x.to_string());
+        let ch_tok = parts.get(4).copied().unwrap_or("");
+        let rate_tok = parts.get(5).copied().unwrap_or("");
+        let state =
+            parts.get(6).map_or_else(String::new, |&x| x.to_string());
 
         let channels = ch_tok
             .strip_suffix("ch")
@@ -284,6 +291,7 @@ fn pulse_sources() -> Result<Vec<SourceInfo>> {
 fn resolve_monitor_source() -> Result<SourceInfo> {
     let sources = pulse_sources()?;
 
+    #[allow(clippy::disallowed_methods)]
     if let Ok(want) = std::env::var("LOOKAS_SYS_DEVICE") {
         let w = want.to_lowercase();
         if let Some(hit) = sources
@@ -309,7 +317,7 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
     // 2. Nothing RUNNING —> prefer default sink monitor.
     if let Ok(sink) = pactl(&["get-default-sink"]) {
         if !sink.is_empty() {
-            let mon = format!("{}.monitor", sink);
+            let mon = format!("{sink}.monitor");
             if let Some(hit) = sources.iter().find(|s| s.name == mon)
             {
                 return Ok(hit.clone());
@@ -330,6 +338,7 @@ fn resolve_monitor_source() -> Result<SourceInfo> {
 }
 
 #[cfg(target_os = "linux")]
+#[allow(clippy::disallowed_methods)]
 fn env_u32(name: &str) -> Option<u32> {
     std::env::var(name).ok().and_then(|v| v.parse::<u32>().ok())
 }
@@ -354,8 +363,8 @@ fn start_system(
             "--device",
             &src.name,
             "--format=float32le",
-            &format!("--latency-msec={}", latency_ms),
-            &format!("--process-time-msec={}", process_ms),
+            &format!("--latency-msec={latency_ms}"),
+            &format!("--process-time-msec={process_ms}"),
             "--rate",
             &use_rate.to_string(),
             "--channels",
@@ -374,38 +383,46 @@ fn start_system(
     let join = thread::spawn(move || {
         let mut buf = [0u8; 16 * 1024];
         let mut carry: Vec<u8> = Vec::with_capacity(32 * 1024);
+        #[allow(clippy::arithmetic_side_effects)]
         let frame_bytes = channels * 4;
 
         loop {
             let n = match stdout.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => n,
-                Err(_) => break,
+                Ok(0) | Err(_) => break,
+                Ok(val) => val,
             };
 
-            carry.extend_from_slice(&buf[..n]);
+            if let Some(slice) = buf.get(..n) {
+                carry.extend_from_slice(slice);
+            }
 
+            #[allow(clippy::arithmetic_side_effects)]
             let frames = carry.len() / frame_bytes;
             if frames == 0 {
                 continue;
             }
 
+            #[allow(clippy::arithmetic_side_effects)]
             let take = frames * frame_bytes;
 
             if let Ok(mut ring) = shared.try_lock() {
                 for f in 0..frames {
+                    #[allow(clippy::arithmetic_side_effects)]
                     let base = f * frame_bytes;
                     let mut acc = 0.0f32;
                     for c in 0..channels {
+                        #[allow(clippy::arithmetic_side_effects)]
                         let off = base + c * 4;
-                        let x = f32::from_le_bytes([
-                            carry[off],
-                            carry[off + 1],
-                            carry[off + 2],
-                            carry[off + 3],
-                        ]);
-                        acc += x;
+                        if let Some(bytes) =
+                            carry.get(off..off.saturating_add(4))
+                        {
+                            let mut chunk = [0u8; 4];
+                            chunk.copy_from_slice(bytes);
+                            let x = f32::from_le_bytes(chunk);
+                            acc += x;
+                        }
                     }
+                    #[allow(clippy::cast_precision_loss)]
                     ring.push(acc / channels as f32);
                 }
             }

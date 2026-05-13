@@ -14,13 +14,20 @@ pub struct Layout {
 }
 
 #[inline]
+#[must_use]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::arithmetic_side_effects
+)]
 pub fn layout_for(w: u16, _h: u16, top_pad: u16) -> Layout {
     let left_pad = 1u16;
     let right_pad = 2u16;
     let usable_cols = w.saturating_sub(left_pad + right_pad);
 
     let per = (BAR_W + GAP_W) as u16;
-    let bars = ((usable_cols / per) as usize).max(1);
+    let bars = usable_cols
+        .checked_div(per)
+        .map_or(1, |v| (v as usize).max(1));
 
     Layout {
         bars,
@@ -31,10 +38,11 @@ pub fn layout_for(w: u16, _h: u16, top_pad: u16) -> Layout {
 }
 
 #[inline]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn v_partial(frac: f32) -> char {
     let f = frac.clamp(0.0, 0.9999);
-    let idx = ((f * 8.0) + 0.5).floor() as usize;
-    VBLOCKS[idx.min(8)]
+    let idx = f.mul_add(8.0, 0.5).floor() as usize;
+    *VBLOCKS.get(idx.min(8)).unwrap_or(&' ')
 }
 
 #[inline]
@@ -45,15 +53,25 @@ fn write_spaces<W: Write>(
     const BLANK: [u8; 64] = [b' '; 64];
     while n >= BLANK.len() {
         out.write_all(&BLANK)?;
-        n -= BLANK.len();
+        n = n.saturating_sub(BLANK.len());
     }
     if n > 0 {
-        out.write_all(&BLANK[..n])?;
+        if let Some(slice) = BLANK.get(..n) {
+            out.write_all(slice)?;
+        }
     }
     Ok(())
 }
 
 #[inline]
+#[allow(
+    clippy::too_many_arguments,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::arithmetic_side_effects,
+    clippy::cognitive_complexity
+)]
 pub fn draw_blocks_vertical<W: Write>(
     out: &mut W,
     bars: &[f32],
@@ -62,32 +80,45 @@ pub fn draw_blocks_vertical<W: Write>(
     lay: &Layout,
 ) -> std::io::Result<()> {
     let rows = h.saturating_sub(lay.top_pad) as usize;
-    let cols =
-        w.saturating_sub(lay.left_pad + lay.right_pad) as usize;
+    let cols = w
+        .saturating_sub(lay.left_pad.saturating_add(lay.right_pad))
+        as usize;
     if rows == 0 || cols == 0 {
         return Ok(());
     }
 
     let per = BAR_W + GAP_W;
-    let n = bars.len().min((cols / per).max(1));
+    let n = bars
+        .len()
+        .min(cols.checked_div(per).map_or(1, |v| v.max(1)));
 
     let mut fulls = vec![0usize; n];
     let mut fracs = vec![0f32; n];
     for i in 0..n {
-        let height = bars[i].clamp(0.0, 1.0) * rows as f32;
-        fulls[i] = height.floor() as usize;
-        fracs[i] = height - fulls[i] as f32;
+        let height =
+            bars.get(i).copied().unwrap_or(0.0).clamp(0.0, 1.0)
+                * rows as f32;
+        if let Some(f) = fulls.get_mut(i) {
+            *f = height.floor() as usize;
+        }
+        if let Some(fr) = fracs.get_mut(i) {
+            *fr =
+                height - (fulls.get(i).copied().unwrap_or(0) as f32);
+        }
     }
 
     for y in 0..rows {
-        let row = rows - 1 - y;
+        let row = rows.saturating_sub(1).saturating_sub(y);
         write_spaces(out, lay.left_pad as usize)?;
 
         for i in 0..n {
-            let ch = if row < fulls[i] {
+            let f_val = fulls.get(i).copied().unwrap_or(0);
+            let ch = if row < f_val {
                 '█'
-            } else if row == fulls[i] && fracs[i] > 0.0 {
-                v_partial(fracs[i])
+            } else if row == f_val
+                && fracs.get(i).copied().unwrap_or(0.0) > 0.0
+            {
+                v_partial(fracs.get(i).copied().unwrap_or(0.0))
             } else {
                 ' '
             };
@@ -102,11 +133,11 @@ pub fn draw_blocks_vertical<W: Write>(
 
         let used = n * per;
         if cols > used {
-            write_spaces(out, cols - used)?;
+            write_spaces(out, cols.saturating_sub(used))?;
         }
         write_spaces(out, lay.right_pad as usize)?;
 
-        if y + 1 < rows {
+        if y.saturating_add(1) < rows {
             out.write_all(b"\r\n")?;
         }
     }
