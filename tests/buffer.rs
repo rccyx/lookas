@@ -14,9 +14,9 @@ fn new_buf_is_empty() {
 #[test]
 fn push_increments_len() {
     let mut buf = SharedBuf::new(64);
-    for i in 1..=10 {
-        buf.push(i as f32);
-        assert_eq!(buf.len(), i);
+    for i in 1_u8..=10 {
+        buf.push(f32::from(i));
+        assert_eq!(buf.len(), usize::from(i));
     }
 }
 
@@ -24,8 +24,8 @@ fn push_increments_len() {
 fn len_caps_at_capacity_after_wraparound() {
     let cap = 8;
     let mut buf = SharedBuf::new(cap);
-    for i in 0..20 {
-        buf.push(i as f32);
+    for i in 0_u8..20 {
+        buf.push(f32::from(i));
     }
     assert_eq!(
         buf.len(),
@@ -53,8 +53,8 @@ fn copy_last_n_returns_false_when_not_enough_data() {
 #[test]
 fn copy_last_n_returns_correct_samples_no_wraparound() {
     let mut buf = SharedBuf::new(64);
-    for i in 0..10 {
-        buf.push(i as f32);
+    for i in 0_u8..10 {
+        buf.push(f32::from(i));
     }
     let mut out = Vec::new();
     assert!(buf.copy_last_n_into(5, &mut out));
@@ -66,8 +66,8 @@ fn copy_last_n_handles_wraparound() {
     // Fill a small buffer past its capacity so the ring wraps.
     let cap = 8;
     let mut buf = SharedBuf::new(cap);
-    for i in 0..12 {
-        buf.push(i as f32); // last 8 pushed are 4..11
+    for i in 0_u8..12 {
+        buf.push(f32::from(i)); // last 8 pushed are 4..11
     }
     let mut out = Vec::new();
     assert!(buf.copy_last_n_into(cap, &mut out));
@@ -108,8 +108,8 @@ fn latest_returns_all_samples_before_fill() {
 fn latest_returns_full_ring_after_wraparound() {
     let cap = 4;
     let mut buf = SharedBuf::new(cap);
-    for i in 0..7 {
-        buf.push(i as f32); // last 4: 3, 4, 5, 6
+    for i in 0_u8..7 {
+        buf.push(f32::from(i)); // last 4: 3, 4, 5, 6
     }
     let v = buf.latest();
     assert_eq!(v.len(), cap);

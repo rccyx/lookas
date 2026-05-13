@@ -1,4 +1,4 @@
-use lookas::filterbank::build_filterbank;
+use lookas::filterbank::{build_filterbank, FilterbankParams};
 
 const SR: f32 = 44_100.0;
 const FFT: usize = 2048;
@@ -8,7 +8,13 @@ const FMAX: f32 = 16_000.0;
 #[test]
 fn filterbank_correct_band_count() {
     for bands in [8, 16, 32, 64] {
-        let fb = build_filterbank(SR, FFT, bands, FMIN, FMAX);
+        let fb = build_filterbank(FilterbankParams {
+            sr: SR,
+            fft_size: FFT,
+            bands,
+            fmin: FMIN,
+            fmax: FMAX,
+        });
         assert_eq!(
             fb.len(),
             bands,
@@ -20,7 +26,13 @@ fn filterbank_correct_band_count() {
 
 #[test]
 fn filterbank_center_frequencies_in_range() {
-    let fb = build_filterbank(SR, FFT, 32, FMIN, FMAX);
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 32,
+        fmin: FMIN,
+        fmax: FMAX,
+    });
     for tri in &fb {
         assert!(
             tri.center_hz >= FMIN * 0.9
@@ -35,14 +47,21 @@ fn filterbank_center_frequencies_in_range() {
 
 #[test]
 fn filterbank_center_frequencies_monotone() {
-    let fb = build_filterbank(SR, FFT, 32, FMIN, FMAX);
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 32,
+        fmin: FMIN,
+        fmax: FMAX,
+    });
     let centers: Vec<f32> = fb.iter().map(|t| t.center_hz).collect();
     for w in centers.windows(2) {
+        let (Some(&prev), Some(&curr)) = (w.first(), w.get(1)) else {
+            continue;
+        };
         assert!(
-            w[1] > w[0],
-            "center frequencies should be monotonically increasing: {} -> {}",
-            w[0],
-            w[1]
+            curr > prev,
+            "center frequencies should be monotonically increasing: {prev} -> {curr}",
         );
     }
 }
@@ -54,7 +73,13 @@ fn filterbank_center_frequencies_monotone() {
 #[test]
 fn filterbank_taps_have_valid_indices() {
     let half = FFT / 2;
-    let fb = build_filterbank(SR, FFT, 32, FMIN, FMAX);
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 32,
+        fmin: FMIN,
+        fmax: FMAX,
+    });
     for (i, tri) in fb.iter().enumerate() {
         for &(idx, _) in &tri.taps {
             assert!(
@@ -67,7 +92,13 @@ fn filterbank_taps_have_valid_indices() {
 
 #[test]
 fn filterbank_tap_weights_non_negative() {
-    let fb = build_filterbank(SR, FFT, 32, FMIN, FMAX);
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 32,
+        fmin: FMIN,
+        fmax: FMAX,
+    });
     for (i, tri) in fb.iter().enumerate() {
         for &(_, wgt) in &tri.taps {
             assert!(
@@ -81,7 +112,13 @@ fn filterbank_tap_weights_non_negative() {
 #[test]
 fn filterbank_tap_weights_normalised() {
     // Each filter is normalised so its tap weights sum to 1.0.
-    let fb = build_filterbank(SR, FFT, 32, FMIN, FMAX);
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 32,
+        fmin: FMIN,
+        fmax: FMAX,
+    });
     for (i, tri) in fb.iter().enumerate() {
         let sum: f32 = tri.taps.iter().map(|(_, w)| w).sum();
         assert!(
@@ -93,7 +130,13 @@ fn filterbank_tap_weights_normalised() {
 
 #[test]
 fn filterbank_each_filter_has_taps() {
-    let fb = build_filterbank(SR, FFT, 32, FMIN, FMAX);
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 32,
+        fmin: FMIN,
+        fmax: FMAX,
+    });
     for (i, tri) in fb.iter().enumerate() {
         assert!(!tri.taps.is_empty(), "filter {i} has no taps");
     }
@@ -105,16 +148,31 @@ fn filterbank_each_filter_has_taps() {
 
 #[test]
 fn filterbank_single_band() {
-    let fb = build_filterbank(SR, FFT, 1, FMIN, FMAX);
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 1,
+        fmin: FMIN,
+        fmax: FMAX,
+    });
     assert_eq!(fb.len(), 1);
-    assert!(!fb[0].taps.is_empty());
+    assert!(
+        fb.first().is_some_and(|tri| !tri.taps.is_empty()),
+        "single band filter has no taps"
+    );
 }
 
 #[test]
 fn filterbank_different_fft_sizes() {
     for fft_size in [512, 1024, 2048, 4096] {
         let half = fft_size / 2;
-        let fb = build_filterbank(SR, fft_size, 16, FMIN, FMAX);
+        let fb = build_filterbank(FilterbankParams {
+            sr: SR,
+            fft_size,
+            bands: 16,
+            fmin: FMIN,
+            fmax: FMAX,
+        });
         assert_eq!(fb.len(), 16);
         for tri in &fb {
             for &(idx, _) in &tri.taps {
@@ -130,7 +188,13 @@ fn filterbank_different_fft_sizes() {
 #[test]
 fn filterbank_different_sample_rates() {
     for sr in [44_100.0f32, 48_000.0] {
-        let fb = build_filterbank(sr, FFT, 24, FMIN, FMAX);
+        let fb = build_filterbank(FilterbankParams {
+            sr,
+            fft_size: FFT,
+            bands: 24,
+            fmin: FMIN,
+            fmax: FMAX,
+        });
         assert_eq!(fb.len(), 24, "sr={sr}");
     }
 }
@@ -145,11 +209,22 @@ fn filterbank_flat_spectrum_produces_positive_output() {
     // in every band.
     let half = FFT / 2;
     let flat = vec![1.0f32; half];
-    let fb = build_filterbank(SR, FFT, 32, FMIN, FMAX);
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 32,
+        fmin: FMIN,
+        fmax: FMAX,
+    });
 
     for (i, tri) in fb.iter().enumerate() {
-        let acc: f32 =
-            tri.taps.iter().map(|&(idx, wgt)| flat[idx] * wgt).sum();
+        let acc: f32 = tri
+            .taps
+            .iter()
+            .map(|&(idx, wgt)| {
+                flat.get(idx).copied().unwrap_or(0.0) * wgt
+            })
+            .sum();
         assert!(
             acc > 0.0,
             "filter {i}: zero energy from flat spectrum"

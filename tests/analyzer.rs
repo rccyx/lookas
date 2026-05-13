@@ -57,10 +57,16 @@ fn make_analyzer_with_filters(
     fft_size: usize,
     bands: usize,
 ) -> SpectrumAnalyzer {
+    use lookas::filterbank::FilterbankParams;
     let half = fft_size / 2;
     let mut sa = SpectrumAnalyzer::new(half);
-    sa.filters =
-        build_filterbank(sr, fft_size, bands, 30.0, 16_000.0);
+    sa.filters = build_filterbank(FilterbankParams {
+        sr,
+        fft_size,
+        bands,
+        fmin: 30.0,
+        fmax: 16_000.0,
+    });
     sa.resize(bands);
     sa
 }
@@ -82,8 +88,8 @@ fn analyze_bands_gate_closed_sets_zeros() {
     // now close the gate
     sa.analyze_bands(DT, false);
     for (i, &v) in sa.bars_target.iter().enumerate() {
-        assert_eq!(
-            v, 0.0,
+        assert!(
+            v.abs() < f32::EPSILON,
             "band {i} should be 0 when gate is closed, got {v}"
         );
     }
@@ -109,7 +115,7 @@ fn analyze_bands_outputs_in_unit_range() {
 // apply_flow_and_spring
 // ---------------------------------------------------------------------------
 
-fn default_params() -> FlowSpringParams {
+const fn default_params() -> FlowSpringParams {
     FlowSpringParams {
         flow_k: 0.18,
         spr_k: 60.0,

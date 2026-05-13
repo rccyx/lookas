@@ -60,11 +60,15 @@ fn a_weighting_monotone_rolloff_in_bass() {
     let freqs = [500.0f32, 250.0, 125.0, 63.0, 31.5];
     let weights: Vec<f32> =
         freqs.iter().map(|&f| a_weighting(f)).collect();
-    for w in weights.windows(2) {
+    for (i, w) in weights.windows(2).enumerate() {
+        let (Some(&cur), Some(&nxt)) = (w.first(), w.get(1)) else {
+            continue;
+        };
+        let f_cur = freqs.get(i).copied().unwrap_or(f32::NAN);
+        let f_nxt = freqs.get(i + 1).copied().unwrap_or(f32::NAN);
         assert!(
-            w[0] > w[1],
-            "expected monotone rolloff: a_weighting({}) = {} should be > a_weighting({}) = {}",
-            freqs[0], w[0], freqs[1], w[1]
+            cur > nxt,
+            "expected monotone rolloff: a_weighting({f_cur}) = {cur} should be > a_weighting({f_nxt}) = {nxt}",
         );
     }
 }
@@ -141,12 +145,10 @@ fn hann_length() {
 #[test]
 fn hann_endpoints_are_zero() {
     let w = hann(1024);
-    assert!(w[0].abs() < 1e-6, "hann[0] should be ~0, got {}", w[0]);
-    assert!(
-        w[1023].abs() < 1e-4,
-        "hann[N-1] should be ~0, got {}",
-        w[1023]
-    );
+    let first = w.first().copied().unwrap_or(f32::NAN);
+    let last = w.last().copied().unwrap_or(f32::NAN);
+    assert!(first.abs() < 1e-6, "hann[0] should be ~0, got {first}");
+    assert!(last.abs() < 1e-4, "hann[N-1] should be ~0, got {last}");
 }
 
 #[test]
@@ -154,13 +156,16 @@ fn hann_peak_near_centre() {
     let n = 1024;
     let w = hann(n);
     let mid = n / 2;
+    let w_mid = w.get(mid).copied().unwrap_or(f32::NAN);
+    let w_prev =
+        w.get(mid.saturating_sub(1)).copied().unwrap_or(f32::NAN);
+    let w_next = w.get(mid + 1).copied().unwrap_or(f32::NAN);
     assert!(
-        (w[mid] - 1.0).abs() < 1e-4,
-        "hann centre should be ~1.0, got {}",
-        w[mid]
+        (w_mid - 1.0).abs() < 1e-4,
+        "hann centre should be ~1.0, got {w_mid}",
     );
-    assert!(w[mid] >= w[mid - 1]);
-    assert!(w[mid] >= w[mid + 1]);
+    assert!(w_mid >= w_prev);
+    assert!(w_mid >= w_next);
 }
 
 #[test]
@@ -194,9 +199,12 @@ fn mel_scale_is_monotone() {
     let freqs = [100.0f32, 500.0, 1_000.0, 4_000.0, 10_000.0];
     let mels: Vec<f32> =
         freqs.iter().map(|&f| hz_to_mel(f)).collect();
-    for m in mels.windows(2) {
+    for w in mels.windows(2) {
+        let (Some(&prev), Some(&curr)) = (w.first(), w.get(1)) else {
+            continue;
+        };
         assert!(
-            m[1] > m[0],
+            curr > prev,
             "mel scale should be monotonically increasing"
         );
     }
