@@ -33,14 +33,6 @@
   </video>
 </div>
 
-### Ϡ
-
-<div align="center">
-  <video  title"demo" src="https://github.com/user-attachments/assets/6bc410a6-7cf4-4fd1-ae76-735b41d96f8a" width="100%" controls>
-    Your browser does not support the video tag.
-  </video>
-</div>
-
 ### λ
 
 <div align="center">
@@ -72,7 +64,7 @@ Animation is driven by a spring-damper model rather than raw amplitude changes. 
 
 Rendering uses dense Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
 
-On modern Linux, this yields a stable 60+ FPS experience with audio-to-visual latency low enough to feel immediate.
+This yields a stable 60+ FPS experience with audio-to-visual latency low enough to feel immediate.
 
 </details>
 
