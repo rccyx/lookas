@@ -23,11 +23,12 @@ pub fn compute_spectrum(ctx: &mut FftContext<'_>) {
     }
 
     #[allow(clippy::cast_precision_loss)]
-    let norm = (ctx.fft_size as f32) * (ctx.fft_size as f32);
+    let norm_inv =
+        1.0 / ((ctx.fft_size as f32) * (ctx.fft_size as f32));
     #[allow(clippy::indexing_slicing)]
     for i in 0..ctx.half {
         let re = ctx.fft_out[i].re;
         let im = ctx.fft_out[i].im;
-        ctx.spec_pow[i] = re.mul_add(re, im * im) / norm;
+        ctx.spec_pow[i] = re.mul_add(re, im * im) * norm_inv;
     }
 }

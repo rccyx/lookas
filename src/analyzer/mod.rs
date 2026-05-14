@@ -18,6 +18,8 @@ pub struct SpectrumAnalyzer {
     pub(crate) sort_scratch: Vec<f32>,
     pub bars_target: Vec<f32>,
     pub(crate) flowed_scratch: Vec<f32>,
+    pub render_fulls: Vec<usize>,
+    pub render_fracs: Vec<f32>,
 }
 
 impl SpectrumAnalyzer {
@@ -34,6 +36,8 @@ impl SpectrumAnalyzer {
             sort_scratch: Vec::new(),
             bars_target: Vec::new(),
             flowed_scratch: Vec::new(),
+            render_fulls: Vec::new(),
+            render_fracs: Vec::new(),
         }
     }
 
@@ -46,6 +50,8 @@ impl SpectrumAnalyzer {
             self.bars_target = vec![0.0; num_bars];
             self.sort_scratch = vec![0.0; num_bars];
             self.flowed_scratch = vec![0.0; num_bars];
+            self.render_fulls = vec![0; num_bars];
+            self.render_fracs = vec![0.0; num_bars];
         }
     }
 

@@ -2,15 +2,32 @@ use std::io::Write;
 
 use super::{Layout, BAR_W, GAP_W};
 
-const VBLOCKS: [char; 9] =
-    [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+// Pre-encoded UTF-8 byte sequences for each block character.
+// Space is ASCII (1 byte); the 8 block elements are all 3-byte U+2580..U+2588.
+// Entries that are 1-byte sequences store the byte in index 0; the write path
+// selects the correct slice length via VBLOCKS_LEN.
+const VBLOCKS_ENCODED: [[u8; 3]; 9] = [
+    [b' ', 0, 0],       // ' '  U+0020  1 byte
+    [0xE2, 0x96, 0x81], // '▁'  U+2581
+    [0xE2, 0x96, 0x82], // '▂'  U+2582
+    [0xE2, 0x96, 0x83], // '▃'  U+2583
+    [0xE2, 0x96, 0x84], // '▄'  U+2584
+    [0xE2, 0x96, 0x85], // '▅'  U+2585
+    [0xE2, 0x96, 0x86], // '▆'  U+2586
+    [0xE2, 0x96, 0x87], // '▇'  U+2587
+    [0xE2, 0x96, 0x88], // '█'  U+2588
+];
+
+const VBLOCKS_LEN: [usize; 9] = [1, 3, 3, 3, 3, 3, 3, 3, 3];
+
+// Index of the full-block character (U+2588) in the table.
+const FULL_BLOCK: usize = 8;
 
 #[inline]
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-fn v_partial(frac: f32) -> char {
+fn v_partial_idx(frac: f32) -> usize {
     let f = frac.clamp(0.0, 0.9999);
-    let idx = f.mul_add(8.0, 0.5).floor() as usize;
-    *VBLOCKS.get(idx.min(8)).unwrap_or(&' ')
+    f.mul_add(8.0, 0.5).floor() as usize
 }
 
 #[inline]
@@ -46,6 +63,8 @@ pub fn draw_blocks_vertical<W: Write>(
     w: u16,
     h: u16,
     lay: &Layout,
+    fulls: &mut [usize],
+    fracs: &mut [f32],
 ) -> std::io::Result<()> {
     let rows = h.saturating_sub(lay.top_pad) as usize;
     let cols = w
@@ -58,10 +77,10 @@ pub fn draw_blocks_vertical<W: Write>(
     let per = BAR_W + GAP_W;
     let n = bars
         .len()
-        .min(cols.checked_div(per).map_or(1, |v| v.max(1)));
+        .min(cols.checked_div(per).map_or(1, |v| v.max(1)))
+        .min(fulls.len())
+        .min(fracs.len());
 
-    let mut fulls = vec![0usize; n];
-    let mut fracs = vec![0f32; n];
     for i in 0..n {
         let height =
             bars.get(i).copied().unwrap_or(0.0).clamp(0.0, 1.0)
@@ -81,20 +100,23 @@ pub fn draw_blocks_vertical<W: Write>(
 
         for i in 0..n {
             let f_val = fulls.get(i).copied().unwrap_or(0);
-            let ch = if row < f_val {
-                '█'
+            let idx = if row < f_val {
+                FULL_BLOCK
             } else if row == f_val
                 && fracs.get(i).copied().unwrap_or(0.0) > 0.0
             {
-                v_partial(fracs.get(i).copied().unwrap_or(0.0))
+                v_partial_idx(fracs.get(i).copied().unwrap_or(0.0))
             } else {
-                ' '
+                0
             };
 
+            let enc = VBLOCKS_ENCODED
+                .get(idx)
+                .unwrap_or(&VBLOCKS_ENCODED[0]);
+            let len = VBLOCKS_LEN.get(idx).copied().unwrap_or(1);
+            let bytes = enc.get(..len).unwrap_or(enc.as_slice());
             for _ in 0..BAR_W {
-                out.write_all(
-                    ch.encode_utf8(&mut [0; 4]).as_bytes(),
-                )?;
+                out.write_all(bytes)?;
             }
             write_spaces(out, GAP_W)?;
         }

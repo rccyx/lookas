@@ -24,16 +24,14 @@ fn decay_to_silence(sa: &mut SpectrumAnalyzer, n: usize, dt_s: f32) {
     let tau_silence = 0.22f32;
     let a = (-dt_s / tau_silence).exp();
 
-    for i in 0..n {
-        if let Some(y) = sa.bars_y.get_mut(i) {
-            *y *= a;
-            if *y < 0.001 {
-                *y = 0.0;
-            }
+    for (y, v) in
+        sa.bars_y.iter_mut().zip(sa.bars_v.iter_mut()).take(n)
+    {
+        *y *= a;
+        if *y < 0.001 {
+            *y = 0.0;
         }
-        if let Some(v) = sa.bars_v.get_mut(i) {
-            *v = 0.0;
-        }
+        *v = 0.0;
     }
 }
 
@@ -72,15 +70,14 @@ fn integrate_spring(
 ) {
     let c = 2.0 * params.spr_k.sqrt() * params.spr_zeta;
 
-    for i in 0..n {
-        if let (Some(y), Some(v), Some(scratch)) = (
-            sa.bars_y.get_mut(i),
-            sa.bars_v.get_mut(i),
-            sa.flowed_scratch.get(i),
-        ) {
-            let a = params.spr_k.mul_add(scratch - *y, -(c * *v));
-            *v = a.mul_add(dt_s, *v);
-            *y = (*v).mul_add(dt_s, *y).clamp(0.0, 1.0);
-        }
+    for (y, (v, scratch)) in sa
+        .bars_y
+        .iter_mut()
+        .zip(sa.bars_v.iter_mut().zip(sa.flowed_scratch.iter()))
+        .take(n)
+    {
+        let a = params.spr_k.mul_add(*scratch - *y, -(c * *v));
+        *v = a.mul_add(dt_s, *v);
+        *y = (*v).mul_add(dt_s, *y).clamp(0.0, 1.0);
     }
 }

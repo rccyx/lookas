@@ -22,7 +22,8 @@ impl SharedBuf {
         }
         let cap = self.data.len();
         if cap > 0 {
-            self.write_idx = (self.write_idx + 1) % cap;
+            let mask = cap - 1;
+            self.write_idx = (self.write_idx + 1) & mask;
             if self.write_idx == 0 {
                 self.filled = true;
             }

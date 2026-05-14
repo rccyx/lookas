@@ -32,7 +32,9 @@ use super::{
 
 #[allow(clippy::arithmetic_side_effects)]
 fn ring_cap(fft_size: usize) -> usize {
-    ((48_000usize / 10).max(fft_size * 3)).max(fft_size * 6)
+    ((48_000usize / 10).max(fft_size * 3))
+        .max(fft_size * 6)
+        .next_power_of_two()
 }
 
 struct AppResources {
@@ -217,6 +219,8 @@ fn tick<W: Write>(
         fs.w,
         fs.h,
         &fs.lay,
+        &mut fs.analyzer.render_fulls,
+        &mut fs.analyzer.render_fracs,
     )?;
     out.write_all(&fs.frame)?;
     out.flush()?;
