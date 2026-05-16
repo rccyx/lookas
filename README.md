@@ -33,14 +33,6 @@
   </video>
 </div>
 
-### λ
-
-<div align="center">
-  <video  title"demo" src="https://github.com/user-attachments/assets/3affab22-9bd6-44f0-9a28-a6642500fab2" width="100%" controls>
-    Your browser does not support the video tag.
-  </video>
-</div>
-
 ## Explainers
 
 <details> <summary><b>What</b></summary>
@@ -87,6 +79,7 @@ You're probably used to CAVA and similar tools.
 | **Interaction** | None              | Lateral energy diffusion |
 
 </details>
+<details><summary><b>Visual comparison</b></summary>
 
 Both Lookas ( ← ) and CAVA ( → ) are running on default configs
 
@@ -97,7 +90,7 @@ Both Lookas ( ← ) and CAVA ( → ) are running on default configs
 
 </div>
 
-<br/>
+</details>
 
 ## Installation
 
@@ -111,11 +104,11 @@ cargo install lookas
 
 If your system already has working audio (microphone or system sound),
 
-Lookas will just run.
+It will just run.
 
 > [!IMPORTANT]
 > On very minimal Linux installs, you might be missing a couple of audio packages.
-> If Lookas fails to start or can't capture audio, run:
+> If the program fails to start or can't capture audio, run:
 >
 > ```bash
 > sudo apt install -y libasound2-dev pulseaudio-utils
@@ -125,7 +118,7 @@ Lookas will just run.
 
 ## Basic Usage
 
-Lookas is **zero-config by default**.
+This is **zero-config by default**.
 
 Just run:
 
