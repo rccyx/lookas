@@ -245,22 +245,6 @@ The `spr_zeta` represents the damping ratio (ζ) (for a deep dive, read [this.](
 
 A zeta value below 1.0 creates an underdamped system, causing the bars to bounce past their target before settling. A zeta value exactly at 1.0, the default, achieves critical damping, meaning the bar snaps to the target instantly with zero overshoot. Any value above 1.0 makes the system overdamped, resulting in a heavy, delayed crawl to the peak.
 
-### Environment variable overrides
-
-Every config value can be overridden temporarily using environment variables.
-
-Examples:
-
-```bash
-LOOKAS_FFT_SIZE=4096 lookas
-LOOKAS_GATE_DB=-60 lookas
-LOOKAS_TARGET_FPS_MS=33 lookas
-```
-
-## Contributing & Issues
-
-Please read [this](.github/CONTRIBUTING.md)
-
 ## License
 
 MIT © [@rccyx](https://rccyx.com)
