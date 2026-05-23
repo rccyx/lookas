@@ -1,16 +1,13 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::Path};
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub fmin: f32,
     pub fmax: f32,
-    pub frame_ms: u64,
     /// target frame duration in milliseconds (e.g. 16 ≈ 60 FPS).
+    pub frame_ms: u64,
     pub fft_size: usize,
     pub tau_spec: f32,
     pub gate_db: f32,
@@ -42,7 +39,6 @@ impl Config {
             cfg.apply_file(&file_cfg);
         }
 
-        cfg.apply_env();
         cfg.sanitize();
 
         Ok(cfg)
@@ -74,36 +70,6 @@ impl Config {
             self.spr_k = v;
         }
         if let Some(v) = fc.spr_zeta {
-            self.spr_zeta = v;
-        }
-    }
-
-    fn apply_env(&mut self) {
-        if let Some(v) = env_parse::<f32>("LOOKAS_FMIN") {
-            self.fmin = v;
-        }
-        if let Some(v) = env_parse::<f32>("LOOKAS_FMAX") {
-            self.fmax = v;
-        }
-        if let Some(v) = env_parse::<u64>("LOOKAS_FRAME_MS") {
-            self.frame_ms = v;
-        }
-        if let Some(v) = env_parse::<usize>("LOOKAS_FFT_SIZE") {
-            self.fft_size = v;
-        }
-        if let Some(v) = env_parse::<f32>("LOOKAS_TAU_SPEC") {
-            self.tau_spec = v;
-        }
-        if let Some(v) = env_parse::<f32>("LOOKAS_GATE_DB") {
-            self.gate_db = v;
-        }
-        if let Some(v) = env_parse::<f32>("LOOKAS_FLOW_K") {
-            self.flow_k = v;
-        }
-        if let Some(v) = env_parse::<f32>("LOOKAS_SPR_K") {
-            self.spr_k = v;
-        }
-        if let Some(v) = env_parse::<f32>("LOOKAS_SPR_ZETA") {
             self.spr_zeta = v;
         }
     }
@@ -142,24 +108,7 @@ struct FileConfig {
     pub spr_zeta: Option<f32>,
 }
 
-#[allow(clippy::disallowed_methods)]
-fn env_parse<T: std::str::FromStr>(name: &str) -> Option<T> {
-    env::var(name).ok().and_then(|v| v.parse::<T>().ok())
-}
-
-#[allow(clippy::disallowed_methods)]
 fn load_file_config() -> Result<Option<FileConfig>> {
-    if let Ok(p) = env::var("LOOKAS_CONFIG") {
-        let path = PathBuf::from(p);
-        if !path.exists() {
-            anyhow::bail!(
-                "LOOKAS_CONFIG points to a missing file: {}",
-                path.display()
-            );
-        }
-        return Ok(Some(read_toml(&path)?));
-    }
-
     let path = dirs::config_dir()
         .context("failed to resolve config directory")?
         .join("lookas.toml");

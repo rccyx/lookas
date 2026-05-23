@@ -40,8 +40,8 @@ pub fn start_system(
         device: src.name.clone(),
         rate: src.rate.clamp(8_000, 192_000).max(rate),
         channels: src.channels.max(1),
-        latency_ms: env_u32("LOOKAS_SYS_LATENCY_MS").unwrap_or(15),
-        process_ms: env_u32("LOOKAS_SYS_PROCESS_MS").unwrap_or(5),
+        latency_ms: 15,
+        process_ms: 5,
     };
 
     let mut child = spawn_parec(&pcfg)?;
@@ -141,11 +141,6 @@ fn push_frames(
     }
 }
 
-#[allow(clippy::disallowed_methods)]
-fn env_u32(name: &str) -> Option<u32> {
-    std::env::var(name).ok().and_then(|v| v.parse::<u32>().ok())
-}
-
 fn cmd_out(mut cmd: Command) -> Result<String> {
     let out = cmd.output().context("failed to run command")?;
     if !out.status.success() {
@@ -207,22 +202,8 @@ fn pulse_sources() -> Result<Vec<SourceInfo>> {
     Ok(out)
 }
 
-#[allow(clippy::disallowed_methods)]
 fn resolve_monitor_source() -> Result<SourceInfo> {
     let sources = pulse_sources()?;
-
-    if let Ok(want) = std::env::var("LOOKAS_SYS_DEVICE") {
-        let w = want.to_lowercase();
-        if let Some(hit) = sources
-            .iter()
-            .find(|s| s.name.to_lowercase().contains(&w))
-        {
-            return Ok(hit.clone());
-        }
-        anyhow::bail!(
-            "LOOKAS_SYS_DEVICE was set but no pulse source matched it"
-        );
-    }
 
     if let Some(hit) = sources
         .iter()
