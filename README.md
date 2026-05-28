@@ -1,5 +1,9 @@
+
 <h1 align="center">Lookas</h1>
 <p align="center">
+  <a href="https://github.com/rccyx/lookas/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/rccyx/lookas/ci.yml?style=for-the-badge&color=black&labelColor=111111&logo=githubactions&logoColor=white" alt="CI Status"/>
+  </a>
   <a href="https://www.kernel.org">
     <img src="https://img.shields.io/badge/Platform-Linux-black?logo=linux&logoColor=white&style=for-the-badge" alt="Platform: Linux" />
   </a>
@@ -33,36 +37,28 @@
   </video>
 </div>
 
-## Explainers
 
-<details> <summary><b>What</b></summary>
-<br/>
+**What it does:**
 
-Lookas captures **microphone input, system audio, or both**, converts the signal into frequency bands using a mel-scale FFT, and renders it as smooth, physics-driven bars directly in your terminal.
+Lookas captures **microphone input, system audio, or both**, converts the signal into frequency bands using a mel-scale FFT, and renders it as smooth, physics-driven bars directly in the terminal.
 
-</details>
-<details> <summary><b>How</b></summary>
-<br/>
+**How it works:**
 
-Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
+Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are then remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
 
-Frequency balance is handled by [A-weighting](http://cdn.standards.iteh.ai/samples/10880/e138f40fd9e84af8906910f4b6d8a4df/IEC-61672-2-2003.pdf) , which models the human ear's actual sensitivity curve across frequency. This keeps the display proportional to what you hear rather than what a meter would measure.
+Frequency balance is handled by [A-weighting](http://cdn.standards.iteh.ai/samples/10880/e138f40fd9e84af8906910f4b6d8a4df/IEC-61672-2-2003.pdf), which models the human ear's actual sensitivity curve across frequency. 
 
-Dynamic range is managed continuously using percentile tracking instead of fixed scaling. A noise gate suppresses background hiss.
+Dynamic range is managed continuously using percentile tracking instead of fixed scaling, with a noise gate suppressing background hiss.
 
 The spectrum uses asymmetric smoothing: energy attacks instantly so every transient is captured at full resolution, while the decay tail uses an exponential moving average for a smooth release.
 
-Animation is driven by a spring-damper model rather than raw amplitude changes. Energy diffuses laterally between neighboring bands, which produces a fluid motion instead of twitchiness.
+Animation is basically a spring damper model. Energy diffuses laterally between neighboring bands, which produces a fluid motion instead of twitchiness.
 
-Rendering uses dense Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
-
-This yields a stable 60+ FPS experience with audio-to-visual latency low enough to feel immediate.
-
-</details>
+To have it rendered at 60+ FPS while keeping perf high: Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
 
 ## CAVA Comparison
 
-You're probably used to CAVA and similar tools.
+You're probably familiar with CAVA and similar tools.
 
 <details><summary><b>How both differ?</b></summary>
 
@@ -87,7 +83,6 @@ Both Lookas ( ← ) and CAVA ( → ) are running on default configs
   <video src="https://github.com/user-attachments/assets/33b5d98b-a6e7-4d10-b093-77abfb25f255" width="100%" controls>
     Your browser does not support the video tag.
   </video>
-
 </div>
 
 </details>
@@ -100,11 +95,7 @@ Simply run:
 cargo install lookas
 ```
 
-**You usually don't need to install anything else.**
-
-If your system already has working audio (microphone or system sound),
-
-It will just run.
+If your system already has working audio (microphone or system sound), it will just run.
 
 > [!IMPORTANT]
 > On very minimal Linux installs, you might be missing a couple of audio packages.
@@ -118,16 +109,13 @@ It will just run.
 
 ## Basic Usage
 
-This is **zero-config by default**.
-
 Just run:
 
 ```bash
 lookas
 ```
 
-It will attempt to start with system audio.  
-If system audio isn't available, it automatically falls back to microphone input.
+It will attempt to start with system audio. If system audio isn't available, it automatically falls back to microphone input.
 
 ## Controls
 
@@ -139,12 +127,9 @@ If system audio isn't available, it automatically falls back to microphone input
 
 ## Configuration (Optional)
 
-You do **not** need any configs to use this.
+Zero-config by default. It ships with sensible defaults and works out of the box. Configuration exists purely for customization.
 
-It ships with sensible defaults and works out of the box.  
-Configuration exists purely for customization.
-
-If you want to tweak how it looks or reacts to sound, it can read a single TOML file and then apply environment variables on top.
+If you want to tweak how it looks or reacts to sound, it reads a single TOML file and applies environment variables on top.
 
 Precedence is:
 
@@ -152,17 +137,11 @@ Environment variables > config file > defaults
 
 ### Config File
 
-The default location is:
+Is here:
 
-- `~/.config/lookas.toml`
+`~/.config/lookas.toml`
 
-You can also point to a file explicitly:
-
-```bash
-LOOKAS_CONFIG=/path/to/lookas.toml lookas
-```
-
-To create the config file, simply copy-paste this into your terminal
+To create the file, simply copy-paste this into your terminal:
 
 ```bash
 mkdir -p ~/.config
@@ -178,8 +157,6 @@ spr_k = 60.0
 spr_zeta = 1.0
 TOML
 ```
-
-### Options
 
 ### Frequency Boundaries
 
