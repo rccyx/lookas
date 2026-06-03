@@ -4,45 +4,18 @@ on:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        ubuntu:
-          - ubuntu-22.04
-          - ubuntu-24.04
-        toolchain:
-          - "1.85.0"
-          - stable
-          - beta
-          - nightly
-
-    runs-on: ${{ matrix.ubuntu }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/setup
-        with:
-          toolchain: ${{ matrix.toolchain }}
+      - uses: ./.github/actions/base-runner
 
       - name: Build release
-        run: cargo build --release
-
-      - name: Smoke run (best-effort)
-        shell: bash
-        env:
-          RUST_BACKTRACE: 1
-          NO_COLOR: 1
-          LOOKAS_HUD: 0
-        run: |
-          set -euxo pipefail
-          cargo run -q &
-          pid=$!
-          sleep 3 || true
-          kill $pid 2>/dev/null || true
+        run: just b
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: lookas-linux-${{ matrix.ubuntu }}-${{ matrix.toolchain }}-${{ github.sha }}
+          name: lookas-linux-${{ github.sha }}
           path: target/release/lookas

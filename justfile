@@ -4,6 +4,7 @@ alias f:= format
 alias l:= clippy  # l for lint
 alias b:= build
 alias t:= test
+alias fc:= format-check
 
 @clean:
     rm -rf target  dist
@@ -13,12 +14,16 @@ alias t:= test
 
 
 @format:
-     cargo fmt
+    cargo fmt --all
 
-@build:
-    cargo build --release
+@format-check:
+    cargo fmt --all -- --check
 
 @clippy:
-    cargo clippy --all-targets --all-features
+    cargo clippy --all-targets --all-features --locked -- -D warnings -A incomplete_features -W clippy::dbg_macro -W clippy::print_stdout
+
+@build:
+    cargo build --release --all-features --locked
+
 @test:
-    cargo test
+    cargo test --all-features --workspace --locked

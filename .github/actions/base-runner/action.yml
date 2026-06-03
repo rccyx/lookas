@@ -1,0 +1,23 @@
+name: "Base Runner"
+description: "Installs the fixed Lookas CI toolchain and system dependencies"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Rust toolchain
+      shell: bash
+      run: |
+        rustup toolchain install --profile minimal
+        rustup component add rustfmt clippy
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install just
+      uses: extractions/setup-just@v3
+
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libasound2-dev pkg-config pulseaudio-utils

@@ -1,4 +1,3 @@
-
 <h1 align="center">Lookas</h1>
 <p align="center">
   <a href="https://github.com/rccyx/lookas/actions">
@@ -37,7 +36,6 @@
   </video>
 </div>
 
-
 **What it does:**
 
 Lookas captures **microphone input, system audio, or both**, converts the signal into frequency bands using a mel-scale FFT, and renders it as smooth, physics-driven bars directly in the terminal.
@@ -46,7 +44,7 @@ Lookas captures **microphone input, system audio, or both**, converts the signal
 
 Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are then remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
 
-Frequency balance is handled by [A-weighting](http://cdn.standards.iteh.ai/samples/10880/e138f40fd9e84af8906910f4b6d8a4df/IEC-61672-2-2003.pdf), which models the human ear's actual sensitivity curve across frequency. 
+Frequency balance is handled by [A-weighting](http://cdn.standards.iteh.ai/samples/10880/e138f40fd9e84af8906910f4b6d8a4df/IEC-61672-2-2003.pdf), which models the human ear's actual sensitivity curve across frequency.
 
 Dynamic range is managed continuously using percentile tracking instead of fixed scaling, with a noise gate suppressing background hiss.
 

@@ -9,8 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/setup
-        with:
-          components: rustfmt, clippy
+      - uses: ./.github/actions/base-runner
 
-      - run: cargo clippy -- -D warnings -A incomplete_features -W clippy::dbg_macro -W clippy::print_stdout
+      - run: just l
