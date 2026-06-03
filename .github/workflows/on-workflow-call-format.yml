@@ -9,6 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/base-runner
 
-      - run: cargo fmt --all -- --check
+      - run: just fc

@@ -16,10 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/setup
-        with:
-          cache: "false"
-          packages: jq
+      - uses: ./.github/actions/base-runner
+
+      - name: Install check dependencies
+        run: sudo apt-get install -y jq
 
       - name: Check crates.io version
         id: check
