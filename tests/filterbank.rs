@@ -129,6 +129,39 @@ fn filterbank_tap_weights_normalised() {
 }
 
 #[test]
+fn filterbank_triangle_peaks_at_center_and_falls_to_edges() {
+    let fb = build_filterbank(FilterbankParams {
+        sr: SR,
+        fft_size: FFT,
+        bands: 1,
+        fmin: 1_000.0,
+        fmax: 4_000.0,
+    });
+    assert_eq!(fb.len(), 1);
+    let Some(tri) = fb.first() else {
+        return;
+    };
+    assert!(!tri.taps.is_empty());
+    let Some(&(left_idx, left_w)) = tri.taps.first() else {
+        return;
+    };
+    let Some(&(right_idx, right_w)) = tri.taps.last() else {
+        return;
+    };
+    let Some(&(peak_idx, peak_w)) =
+        tri.taps.iter().max_by(|(_, a), (_, b)| a.total_cmp(b))
+    else {
+        return;
+    };
+
+    assert!(left_idx < peak_idx);
+    assert!(peak_idx < right_idx);
+    assert!(left_w <= f32::EPSILON);
+    assert!(right_w <= f32::EPSILON);
+    assert!(tri.taps.iter().all(|&(_, weight)| weight <= peak_w));
+}
+
+#[test]
 fn filterbank_each_filter_has_taps() {
     let fb = build_filterbank(FilterbankParams {
         sr: SR,

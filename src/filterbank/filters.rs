@@ -28,9 +28,8 @@ pub fn create_filters(
         if cr_diff > 0 {
             let cr_diff_f = cr_diff as f32;
             for i in (c + 1)..=r {
-                let w = 1.0
-                    - (i.saturating_sub(c).saturating_sub(1)) as f32
-                        / cr_diff_f;
+                let w =
+                    1.0 - (i.saturating_sub(c)) as f32 / cr_diff_f;
                 taps.push((i, w));
             }
         }
