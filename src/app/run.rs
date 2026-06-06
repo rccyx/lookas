@@ -27,7 +27,7 @@ use super::{
     fft::{compute_spectrum, FftContext},
     gate::GateState,
     input::{handle_key, InputContext},
-    mix::compute_rms,
+    mix::compute_power,
 };
 
 #[allow(clippy::arithmetic_side_effects)]
@@ -124,7 +124,7 @@ fn init_frame(
     FrameState {
         analyzer: SpectrumAnalyzer::new(half),
         gate: GateState {
-            pow_ema: 0.0,
+            power_ema: 0.0,
             open: false,
             below_s: 0.0,
             attack_s: 0.012,
@@ -185,7 +185,7 @@ fn tick<W: Write>(
         return Ok(());
     };
 
-    fs.gate.tick(compute_rms(tail, res.fft_size), fs.dt_s);
+    fs.gate.tick(compute_power(tail, res.fft_size), fs.dt_s);
 
     compute_spectrum(&mut FftContext {
         tail,

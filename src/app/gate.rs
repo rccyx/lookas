@@ -1,7 +1,7 @@
 use lookas::dsp::ema_tc;
 
 pub struct GateState {
-    pub pow_ema: f32,
+    pub power_ema: f32,
     pub open: bool,
     pub below_s: f32,
     pub attack_s: f32,
@@ -13,27 +13,27 @@ pub struct GateState {
 
 impl GateState {
     pub fn reset(&mut self) {
-        self.pow_ema = 0.0;
+        self.power_ema = 0.0;
         self.open = false;
         self.below_s = 0.0;
     }
 
-    pub fn tick(&mut self, rms: f32, dt_s: f32) {
-        if self.pow_ema == 0.0 {
-            self.pow_ema = rms;
+    pub fn tick(&mut self, power: f32, dt_s: f32) {
+        if self.power_ema == 0.0 {
+            self.power_ema = power;
         } else {
-            let tau = if rms > self.pow_ema {
+            let tau = if power > self.power_ema {
                 self.attack_s
             } else {
                 self.release_s
             };
-            self.pow_ema = ema_tc(self.pow_ema, rms, tau, dt_s);
+            self.power_ema = ema_tc(self.power_ema, power, tau, dt_s);
         }
 
-        let rms_db = 10.0 * self.pow_ema.max(1e-12).log10();
+        let power_db = 10.0 * self.power_ema.max(1e-12).log10();
 
         if self.open {
-            if rms_db < self.close_db {
+            if power_db < self.close_db {
                 self.below_s += dt_s;
                 if self.below_s >= self.confirm_s {
                     self.open = false;
@@ -44,7 +44,7 @@ impl GateState {
             }
         } else {
             self.below_s = 0.0;
-            if rms_db > self.open_db {
+            if power_db > self.open_db {
                 self.open = true;
             }
         }
