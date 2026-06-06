@@ -115,3 +115,15 @@ fn latest_returns_full_ring_after_wraparound() {
     assert_eq!(v.len(), cap);
     assert_eq!(v, vec![3.0, 4.0, 5.0, 6.0]);
 }
+
+#[test]
+fn non_power_of_two_capacity_wraps_in_order() {
+    let mut buf = SharedBuf::new(3);
+    for i in 0_u8..6 {
+        buf.push(f32::from(i));
+    }
+
+    let mut out = Vec::new();
+    assert!(buf.copy_last_n_into(3, &mut out));
+    assert_eq!(out, vec![3.0, 4.0, 5.0]);
+}
