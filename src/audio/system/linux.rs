@@ -38,7 +38,7 @@ pub fn start_system(
     let src = resolve_monitor_source()?;
     let pcfg = ParecConfig {
         device: src.name.clone(),
-        rate: src.rate.clamp(8_000, 192_000).max(rate),
+        rate,
         channels: src.channels.max(1),
         latency_ms: 15,
         process_ms: 5,
@@ -161,7 +161,6 @@ fn pactl(args: &[&str]) -> Result<String> {
 struct SourceInfo {
     name: String,
     channels: usize,
-    rate: u32,
     state: String,
 }
 
@@ -178,7 +177,6 @@ fn pulse_sources() -> Result<Vec<SourceInfo>> {
         let name =
             parts.get(1).map_or_else(String::new, |&x| x.to_string());
         let ch_tok = parts.get(4).copied().unwrap_or("");
-        let rate_tok = parts.get(5).copied().unwrap_or("");
         let state =
             parts.get(6).map_or_else(String::new, |&x| x.to_string());
 
@@ -186,15 +184,10 @@ fn pulse_sources() -> Result<Vec<SourceInfo>> {
             .strip_suffix("ch")
             .and_then(|x| x.parse().ok())
             .unwrap_or(2);
-        let rate = rate_tok
-            .strip_suffix("Hz")
-            .and_then(|x| x.parse().ok())
-            .unwrap_or(48_000);
 
         out.push(SourceInfo {
             name,
             channels,
-            rate,
             state,
         });
     }

@@ -15,20 +15,10 @@
 </p>
 
 <p align="center">
-  <strong>Perception aligned terminal-based audio spectrum visualizer.</strong>
-</p>
-
-## Overview
-
-### Ϟ
-
-<p align="center">
   <a href="https://www.youtube.com/watch?v=lVDFpoCkvh8">
     <img src="./assets/demo.gif" alt="Lookas Demo" width="100%">
   </a>
 </p>
-
-### Ϝ
 
 <div align="center">
   <video title"demo" src="https://github.com/user-attachments/assets/d46f74ad-77d3-4932-b02e-ff91df87d26b" width="100%" controls>
