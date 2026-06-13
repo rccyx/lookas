@@ -1,0 +1,60 @@
+[package]
+name = "lookas"
+version = "1.9.0"
+edition = "2024"
+rust-version = "1.85"
+authors = ["@rccyx <https://rccyx.com>"]
+description = "Perception aligned terminal-based audio spectrum visualizer"
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/rccyx/lookas"
+homepage = "https://github.com/rccyx/lookas"
+documentation = "https://github.com/rccyx/lookas"
+keywords = ["audio", "audio-visualizer", "spectrum-analyzer", "terminal", "physics"]
+categories = ["multimedia::audio", "visualization", "command-line-utilities"]
+
+[dependencies]
+anyhow = "1.0.102"
+crossterm = "0.29.0"
+cpal = "0.18.1"
+realfft = "3.5.0"
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "1.1.2"
+dirs = "6.0.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2.186"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[lints.rust]
+unsafe_code = "forbid"
+incomplete_features = "allow"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+
+dbg_macro = "warn"
+print_stdout = "warn"
+todo = "deny"
+
+missing_docs_in_private_items = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+multiple_crate_versions = "allow"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+float_cmp = "deny"
+float_cmp_const = "deny"
+cast_lossless = "deny"
+arithmetic_side_effects = "warn"
