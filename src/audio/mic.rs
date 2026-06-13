@@ -18,10 +18,10 @@ pub(super) fn start_mic(
     shared: Arc<Mutex<SharedBuf>>,
 ) -> Result<MicHandle> {
     let device = pick_input_device()?;
-    let label = device
-        .description()
-        .map(|desc| desc.name().to_string())
-        .unwrap_or_else(|_| "mic".into());
+    let label = device.description().map_or_else(
+        |_| "mic".into(),
+        |desc| desc.name().to_string(),
+    );
 
     let supported_cfg = best_supported_config_for(&device)?;
     let cfg = supported_cfg.config();

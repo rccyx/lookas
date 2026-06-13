@@ -44,7 +44,7 @@ impl Config {
         Ok(cfg)
     }
 
-    fn apply_file(&mut self, fc: &FileConfig) {
+    const fn apply_file(&mut self, fc: &FileConfig) {
         if let Some(v) = fc.fmin {
             self.fmin = v;
         }

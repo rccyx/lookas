@@ -12,7 +12,7 @@ pub struct GateState {
 }
 
 impl GateState {
-    pub fn reset(&mut self) {
+    pub const fn reset(&mut self) {
         self.power_ema = 0.0;
         self.open = false;
         self.below_s = 0.0;
