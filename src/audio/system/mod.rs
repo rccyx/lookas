@@ -5,7 +5,7 @@ mod linux;
 mod stub;
 
 #[cfg(target_os = "linux")]
-pub use linux::{start_system, SystemHandle};
+pub use linux::{SystemHandle, start_system};
 
 #[cfg(not(target_os = "linux"))]
-pub use stub::{start_system, SystemHandle};
+pub use stub::{SystemHandle, start_system};

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use super::{Layout, BAR_W, GAP_W};
+use super::{BAR_W, GAP_W, Layout};
 
 // Pre-encoded UTF-8 byte sequences for each block character.
 // Space is ASCII (1 byte); the 8 block elements are all 3-byte U+2580..U+2588.

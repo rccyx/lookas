@@ -1,4 +1,4 @@
-use lookas::filterbank::{build_filterbank, FilterbankParams};
+use lookas::filterbank::{FilterbankParams, build_filterbank};
 
 const SR: f32 = 44_100.0;
 const FFT: usize = 2048;

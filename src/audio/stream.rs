@@ -7,15 +7,15 @@ use std::sync::{Arc, Mutex};
 
 pub fn build_stream<T>(
     device: &Device,
-    cfg: &StreamConfig,
+    cfg: StreamConfig,
     shared: Arc<Mutex<SharedBuf>>,
 ) -> Result<cpal::Stream>
 where
     T: Sample + SizedSample,
     f32: cpal::FromSample<T>,
 {
-    let ch = cfg.channels as usize;
-    let err_fn = |err: cpal::StreamError| {
+    let ch = usize::from(cfg.channels);
+    let err_fn = |err: cpal::Error| {
         eprintln!("[lookas] audio stream error: {err}");
     };
 

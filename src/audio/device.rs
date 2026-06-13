@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{
-    Device, SampleRate, StreamConfig, SupportedStreamConfig,
+    Device, StreamConfig, SupportedStreamConfig,
     SupportedStreamConfigRange,
 };
 
@@ -39,7 +39,7 @@ fn config_with_rate(
     ranges: &[SupportedStreamConfigRange],
     rate: u32,
 ) -> Option<SupportedStreamConfig> {
-    ranges.iter().find_map(|range| {
-        (*range).try_with_sample_rate(SampleRate(rate))
-    })
+    ranges
+        .iter()
+        .find_map(|range| (*range).try_with_sample_rate(rate))
 }

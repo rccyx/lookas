@@ -10,23 +10,23 @@ use lookas::{
     buffer::SharedBuf,
     config::Config,
     dsp::hann,
-    filterbank::{build_filterbank, FilterbankParams},
-    render::{draw_blocks_vertical, layout_for, Layout},
+    filterbank::{FilterbankParams, build_filterbank},
+    render::{Layout, draw_blocks_vertical, layout_for},
     utils::scopeguard,
 };
 use realfft::num_complex::Complex;
 use realfft::{RealFftPlanner, RealToComplex};
 use std::{
-    io::{stdout, BufWriter, Write},
+    io::{BufWriter, Write, stdout},
     sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
 
 use super::{
-    fft::{compute_spectrum, FftContext},
+    fft::{FftContext, compute_spectrum},
     gate::GateState,
-    input::{handle_key, InputContext},
+    input::{InputContext, handle_key},
     mix::compute_power,
 };
 
