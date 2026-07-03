@@ -85,7 +85,8 @@ impl AudioController {
                 Ok(())
             }
             AudioMode::System => {
-                let sys = start_system(sys_shared, DEFAULT_SAMPLE_RATE)?;
+                let sys =
+                    start_system(sys_shared, DEFAULT_SAMPLE_RATE)?;
                 self.info = CaptureInfo {
                     label: sys.label.clone(),
                     sample_rate: sys.sample_rate,

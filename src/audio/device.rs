@@ -1,13 +1,12 @@
 use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{
-    Device, SampleRate, SupportedStreamConfig, SupportedStreamConfigRange,
+    Device, SampleRate, SupportedStreamConfig,
+    SupportedStreamConfigRange,
 };
 
-const PREFERRED_INPUT_SAMPLE_RATES: [SampleRate; 2] = [
-    SampleRate(48_000), 
-    SampleRate(44_100),
-];
+const PREFERRED_INPUT_SAMPLE_RATES: [SampleRate; 2] =
+    [SampleRate(48_000), SampleRate(44_100)];
 
 pub fn pick_input_device() -> Result<Device> {
     cpal::default_host()
@@ -15,7 +14,9 @@ pub fn pick_input_device() -> Result<Device> {
         .context("No default input device")
 }
 
-pub fn best_config_for(device: &Device) -> Result<SupportedStreamConfig> {
+pub fn best_config_for(
+    device: &Device,
+) -> Result<SupportedStreamConfig> {
     let default = device.default_input_config()?;
     let default_format = default.sample_format();
 
@@ -39,5 +40,5 @@ fn config_with_rate(
 ) -> Option<SupportedStreamConfig> {
     ranges
         .iter()
-        .find_map(|range| range.clone().try_with_sample_rate(sample_rate))
+        .find_map(|&range| range.try_with_sample_rate(sample_rate))
 }
