@@ -2,10 +2,6 @@ use std::io::Write;
 
 use super::{Layout, BAR_W, GAP_W};
 
-// Pre-encoded UTF-8 byte sequences for each block character.
-// Space is ASCII (1 byte); the 8 block elements are all 3-byte U+2580..U+2588.
-// Entries that are 1-byte sequences store the byte in index 0; the write path
-// selects the correct slice length via VBLOCKS_LEN.
 const VBLOCKS_ENCODED: [[u8; 3]; 9] = [
     [b' ', 0, 0],       // ' '  U+0020  1 byte
     [0xE2, 0x96, 0x81], // '▁'  U+2581
@@ -20,7 +16,6 @@ const VBLOCKS_ENCODED: [[u8; 3]; 9] = [
 
 const VBLOCKS_LEN: [usize; 9] = [1, 3, 3, 3, 3, 3, 3, 3, 3];
 
-// Index of the full-block character (U+2588) in the table.
 const FULL_BLOCK: usize = 8;
 
 #[inline]

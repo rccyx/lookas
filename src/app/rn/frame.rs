@@ -156,12 +156,12 @@ impl Frame {
             compute_power(&self.mix, runtime.fft_size()),
             self.dt_s,
         );
-        self.compute_spectrum(runtime.fft_size());
+        self.cs(runtime.fft_size());
         self.analyze();
         self.draw(out)
     }
 
-    fn compute_spectrum(&mut self, fft_size: usize) {
+    fn cs(&mut self, fft_size: usize) {
         compute_spectrum(&mut FftContext {
             tail: &self.mix,
             window: &self.window,
