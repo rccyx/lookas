@@ -22,6 +22,8 @@ permissions:
 jobs:
   format:
     uses: ./.github/workflows/on-workflow-call-format.yml
+    permissions:
+      contents: write
 
   lint:
     uses: ./.github/workflows/on-workflow-call-lint.yml
