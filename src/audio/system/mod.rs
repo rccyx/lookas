@@ -2,4 +2,4 @@
 mod linux;
 
 #[cfg(target_os = "linux")]
-pub use linux::{start_system, SystemHandle};
+pub use linux::{SystemHandle, start_system};

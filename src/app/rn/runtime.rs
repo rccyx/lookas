@@ -7,7 +7,7 @@ use lookas::{
 };
 use std::sync::{Arc, Mutex};
 
-use super::super::input::{handle_key, InputContext};
+use super::super::input::{InputContext, handle_key};
 
 pub enum InputAction {
     Continue,

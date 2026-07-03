@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use super::{Layout, BAR_W, GAP_W};
+use super::{BAR_W, GAP_W, Layout};
 
 const VBLOCKS_ENCODED: [[u8; 3]; 9] = [
     [b' ', 0, 0],       // ' '  U+0020  1 byte

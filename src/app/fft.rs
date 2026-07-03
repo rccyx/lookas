@@ -1,6 +1,6 @@
 use lookas::dsp::prepare_fft_input_inplace;
-use realfft::num_complex::Complex;
 use realfft::RealToComplex;
+use realfft::num_complex::Complex;
 use std::sync::Arc;
 
 pub struct FftContext<'a> {
