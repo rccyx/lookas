@@ -5,7 +5,7 @@ use cpal::SampleFormat;
 use crate::buffer::SharedBuf;
 use std::sync::{Arc, Mutex};
 
-use super::device::{best_supported_config_for, pick_input_device};
+use super::device::{best_config_for, pick_input_device};
 use super::stream::build_stream;
 
 pub struct MicHandle {
@@ -19,7 +19,7 @@ pub(super) fn start_mic(
 ) -> Result<MicHandle> {
     let device = pick_input_device()?;
     let label = device.name().unwrap_or_else(|_| "mic".into());
-    let supported_cfg = best_supported_config_for(&device)?;
+    let supported_cfg = best_config_for(&device)?;
     let cfg = supported_cfg.config();
     let sample_rate = cfg.sample_rate.0;
 
