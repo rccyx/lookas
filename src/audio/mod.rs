@@ -14,6 +14,8 @@ use std::sync::{Arc, Mutex};
 use mic::start_mic;
 use system::start_system;
 
+const DEFAULT_SAMPLE_RATE: u32 = 48_000;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AudioMode {
     Mic,
@@ -48,7 +50,7 @@ impl AudioController {
             sys: None,
             info: CaptureInfo {
                 label: "mic".into(),
-                sample_rate: 48_000,
+                sample_rate: DEFAULT_SAMPLE_RATE,
             },
         }
     }
@@ -83,7 +85,7 @@ impl AudioController {
                 Ok(())
             }
             AudioMode::System => {
-                let sys = start_system(sys_shared, 48_000)?;
+                let sys = start_system(sys_shared, DEFAULT_SAMPLE_RATE)?;
                 self.info = CaptureInfo {
                     label: sys.label.clone(),
                     sample_rate: sys.sample_rate,
