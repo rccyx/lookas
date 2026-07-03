@@ -11,4 +11,22 @@ jobs:
 
       - uses: ./.github/actions/base-runner
 
-      - run: just fc
+      - if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+        run: just fc
+
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          just f
+
+          if git diff --quiet; then
+            just fc
+            exit
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "gh action: auto format"
+          git push
+
+          just fc

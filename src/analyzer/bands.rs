@@ -24,7 +24,7 @@ fn accumulate_band_db(
         let mut acc = 0.0f32;
         for &(idx, wgt) in &tri.taps {
             if let Some(&val) = sa.spec_pow_smooth.get(idx) {
-                acc += val * wgt;
+                acc = val.mul_add(wgt, acc);
             }
         }
         let amp_weighted = acc.sqrt() * a_weighting(tri.center_hz);
