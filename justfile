@@ -4,6 +4,7 @@ alias f:= format
 alias l:= clippy  # l for lint
 alias b:= build
 alias t:= test
+alias r:= run
 alias fc:= format-check
 
 @clean:
@@ -27,3 +28,6 @@ alias fc:= format-check
 
 @test:
     cargo test --all-features --workspace --locked
+
+@run:
+    cargo run
