@@ -1,7 +1,7 @@
 use anyhow::Result;
 use crossterm::event::KeyCode;
 use lookas::{
-    audio::{AudioController, AudioMode},
+    audio::{AudioController, AudioError, AudioMode},
     buffer::SharedBuf,
     config::Config,
 };
@@ -15,6 +15,15 @@ pub enum InputAction {
     AudioChanged,
 }
 
+pub enum StartupCapture {
+    System,
+    MicFallback { system_error: AudioError },
+}
+
+pub struct RuntimeDiagnostics {
+    pub startup_capture: StartupCapture,
+}
+
 pub struct Runtime {
     fft_size: usize,
     audio: AudioController,
@@ -23,6 +32,7 @@ pub struct Runtime {
     sr: f32,
     cap: usize,
     sr_u32: u32,
+    diagnostics: RuntimeDiagnostics,
 }
 
 impl Runtime {
@@ -33,20 +43,24 @@ impl Runtime {
         let sys_shared = Arc::new(Mutex::new(SharedBuf::new(cap)));
 
         let mut audio = AudioController::new();
-        if audio
-            .start(
-                AudioMode::System,
-                mic_shared.clone(),
-                sys_shared.clone(),
-            )
-            .is_err()
-        {
-            audio.start(
-                AudioMode::Mic,
-                mic_shared.clone(),
-                sys_shared.clone(),
-            )?;
-        }
+        let startup_capture = match audio.start(
+            AudioMode::System,
+            mic_shared.clone(),
+            sys_shared.clone(),
+        ) {
+            Ok(()) => StartupCapture::System,
+            Err(system_error) => {
+                audio.start(
+                    AudioMode::Mic,
+                    mic_shared.clone(),
+                    sys_shared.clone(),
+                )?;
+
+                StartupCapture::MicFallback { system_error }
+            }
+        };
+
+        let diagnostics = RuntimeDiagnostics { startup_capture };
 
         let sr_u32 = audio.info().sample_rate;
         #[allow(clippy::cast_precision_loss)]
@@ -60,6 +74,7 @@ impl Runtime {
             sr,
             cap,
             sr_u32,
+            diagnostics,
         })
     }
 
@@ -95,6 +110,10 @@ impl Runtime {
 
     pub const fn mode(&self) -> AudioMode {
         self.audio.mode()
+    }
+
+    pub const fn diagnostics(&self) -> &RuntimeDiagnostics {
+        &self.diagnostics
     }
 
     pub fn copy_mic_tail(&self, tail: &mut Vec<f32>) -> bool {

@@ -16,6 +16,8 @@ use system::start_system;
 
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 
+pub type AudioError = anyhow::Error;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AudioMode {
     Mic,

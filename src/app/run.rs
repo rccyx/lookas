@@ -13,7 +13,9 @@ use std::{
 
 use super::rn::{
     frame::Frame,
-    runtime::{InputAction, Runtime},
+    runtime::{
+        InputAction, Runtime, RuntimeDiagnostics, StartupCapture,
+    },
 };
 
 pub fn run() -> Result<()> {
@@ -38,6 +40,8 @@ pub fn run() -> Result<()> {
     });
 
     let mut runtime = Runtime::new(&cfg)?;
+    report_diagnostics(runtime.diagnostics());
+
     let (w, h) = terminal::size()?;
     let mut frame = Frame::new(&cfg, &runtime, w, h);
     let target_dt = Duration::from_millis(cfg.frame_ms);
@@ -85,5 +89,17 @@ pub fn run() -> Result<()> {
         frame.ensure_filterbank(&runtime);
         frame.set_delta(dt_s);
         frame.tick(&runtime, &mut out)?;
+    }
+}
+
+fn report_diagnostics(diagnostics: &RuntimeDiagnostics) {
+    match &diagnostics.startup_capture {
+        StartupCapture::System => {}
+        StartupCapture::MicFallback { system_error } => {
+            eprintln!(
+                "[lookas] system capture failed: {system_error}"
+            );
+            eprintln!("[lookas] fallback active: using mic");
+        }
     }
 }
