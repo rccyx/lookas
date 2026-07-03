@@ -6,7 +6,7 @@ use crossterm::{
 };
 use lookas::{config::Config, utils::scopeguard};
 use std::{
-    io::{stdout, BufWriter, Write},
+    io::{BufWriter, Write, stdout},
     thread,
     time::{Duration, Instant},
 };

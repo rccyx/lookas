@@ -5,15 +5,15 @@ use lookas::{
     audio::AudioMode,
     config::Config,
     dsp::hann,
-    filterbank::{build_filterbank, FilterbankParams},
-    render::{draw_blocks_vertical, layout_for, Layout},
+    filterbank::{FilterbankParams, build_filterbank},
+    render::{Layout, draw_blocks_vertical, layout_for},
 };
 use realfft::num_complex::Complex;
 use realfft::{RealFftPlanner, RealToComplex};
 use std::{io::Write, sync::Arc};
 
 use super::super::{
-    fft::{compute_spectrum, FftContext},
+    fft::{FftContext, compute_spectrum},
     gate::GateState,
     mix::compute_power,
 };

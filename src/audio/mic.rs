@@ -1,6 +1,6 @@
 use anyhow::Result;
-use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::SampleFormat;
+use cpal::traits::{DeviceTrait, StreamTrait};
 
 use crate::buffer::SharedBuf;
 use std::sync::{Arc, Mutex};
