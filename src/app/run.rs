@@ -1,7 +1,7 @@
 use anyhow::Result;
 use crossterm::{
     cursor, event, execute, queue,
-    style::{Color, SetForegroundColor},
+    style::{Color, ResetColor, SetForegroundColor},
     terminal::{self, ClearType},
 };
 use lookas::{config::Config, utils::scopeguard};
@@ -28,14 +28,22 @@ pub fn run() -> Result<()> {
         terminal::EnterAlternateScreen,
         cursor::Hide,
         terminal::Clear(ClearType::All),
-        SetForegroundColor(Color::White),
+        SetForegroundColor(Color::Rgb {
+            r: cfg.color.r,
+            g: cfg.color.g,
+            b: cfg.color.b,
+        }),
     )?;
     out.flush()?;
 
     let _cleanup = scopeguard::guard((), |()| {
         let mut o = stdout();
-        let _ =
-            execute!(o, cursor::Show, terminal::LeaveAlternateScreen);
+        let _ = execute!(
+            o,
+            ResetColor,
+            cursor::Show,
+            terminal::LeaveAlternateScreen
+        );
         let _ = terminal::disable_raw_mode();
     });
 

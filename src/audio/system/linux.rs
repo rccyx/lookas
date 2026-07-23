@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
+use std::fmt;
 use std::io::Read;
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -29,6 +30,21 @@ struct ParecConfig {
     channels: usize,
     latency_ms: u32,
     process_ms: u32,
+}
+
+#[derive(Debug)]
+enum CommandError {
+    MissingCommand {
+        cmd: &'static str,
+        source: std::io::Error,
+    },
+    CommandFailed {
+        cmd: &'static str,
+        args: String,
+        status: ExitStatus,
+        stdout: String,
+        stderr: String,
+    },
 }
 
 pub fn start_system(
@@ -141,21 +157,57 @@ fn push_frames(
     }
 }
 
-fn cmd_out(mut cmd: Command) -> Result<String> {
-    let out = cmd.output().context("failed to run command")?;
+fn cmd_out(cmd: &'static str, args: &[&str]) -> Result<String> {
+    let out =
+        Command::new(cmd).args(args).output().map_err(|source| {
+            CommandError::MissingCommand { cmd, source }
+        })?;
+
     if !out.status.success() {
-        anyhow::bail!("command failed");
+        return Err(CommandError::CommandFailed {
+            cmd,
+            args: args.join(" "),
+            status: out.status,
+            stdout: String::from_utf8_lossy(&out.stdout)
+                .trim()
+                .to_string(),
+            stderr: String::from_utf8_lossy(&out.stderr)
+                .trim()
+                .to_string(),
+        }
+        .into());
     }
+
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 fn pactl(args: &[&str]) -> Result<String> {
-    let mut cmd = Command::new("pactl");
-    cmd.args(args);
-    cmd_out(cmd).context(
+    cmd_out("pactl", args).context(
         "pactl failed (install pulseaudio-utils, and ensure pipewire-pulse or pulseaudio is running)",
     )
 }
+
+impl fmt::Display for CommandError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingCommand { cmd, source } => {
+                write!(f, "missing command `{cmd}`: {source}")
+            }
+            Self::CommandFailed {
+                cmd,
+                args,
+                status,
+                stdout,
+                stderr,
+            } => write!(
+                f,
+                "command `{cmd} {args}` failed with {status}; stdout: {stdout}; stderr: {stderr}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CommandError {}
 
 #[derive(Clone)]
 struct SourceInfo {

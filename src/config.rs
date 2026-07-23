@@ -2,11 +2,25 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::{fs, path::Path};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RgbColor {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl RgbColor {
+    pub const WHITE: Self = Self {
+        r: 255,
+        g: 255,
+        b: 255,
+    };
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub fmin: f32,
     pub fmax: f32,
-    /// target frame duration in milliseconds (e.g. 16 ≈ 60 FPS).
     pub frame_ms: u64,
     pub fft_size: usize,
     pub tau_spec: f32,
@@ -14,6 +28,7 @@ pub struct Config {
     pub flow_k: f32,
     pub spr_k: f32,
     pub spr_zeta: f32,
+    pub color: RgbColor,
 }
 
 impl Config {
@@ -29,6 +44,7 @@ impl Config {
             flow_k: 0.18,
             spr_k: 60.0,
             spr_zeta: 1.0,
+            color: RgbColor::WHITE,
         }
     }
 
@@ -36,7 +52,7 @@ impl Config {
         let mut cfg = Self::defaults();
 
         if let Some(file_cfg) = load_file_config()? {
-            cfg.apply_file(&file_cfg);
+            cfg.apply_file(&file_cfg)?;
         }
 
         cfg.sanitize();
@@ -44,7 +60,7 @@ impl Config {
         Ok(cfg)
     }
 
-    fn apply_file(&mut self, fc: &FileConfig) {
+    fn apply_file(&mut self, fc: &FileConfig) -> Result<()> {
         if let Some(v) = fc.fmin {
             self.fmin = v;
         }
@@ -72,6 +88,11 @@ impl Config {
         if let Some(v) = fc.spr_zeta {
             self.spr_zeta = v;
         }
+        if let Some(v) = fc.color.as_deref() {
+            self.color = parse_hex_color(v)?;
+        }
+
+        Ok(())
     }
 
     fn sanitize(&mut self) {
@@ -95,7 +116,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, Default, Clone, Copy)]
+#[derive(Debug, Deserialize, Default, Clone)]
 struct FileConfig {
     pub fmin: Option<f32>,
     pub fmax: Option<f32>,
@@ -106,6 +127,7 @@ struct FileConfig {
     pub flow_k: Option<f32>,
     pub spr_k: Option<f32>,
     pub spr_zeta: Option<f32>,
+    pub color: Option<String>,
 }
 
 fn load_file_config() -> Result<Option<FileConfig>> {
@@ -121,10 +143,56 @@ fn load_file_config() -> Result<Option<FileConfig>> {
 }
 
 fn read_toml(path: &Path) -> Result<FileConfig> {
-    let s = fs::read_to_string(path).with_context(|| {
+    let contents = fs::read_to_string(path).with_context(|| {
         format!("failed to read config: {}", path.display())
     })?;
-    toml::from_str::<FileConfig>(&s).with_context(|| {
+
+    toml::from_str::<FileConfig>(&contents).with_context(|| {
         format!("invalid TOML in {}", path.display())
     })
+}
+
+fn parse_hex_color(value: &str) -> Result<RgbColor> {
+    let value = value.trim();
+    let hex = value.strip_prefix('#').unwrap_or(value);
+    let bytes = hex.as_bytes();
+
+    let &[r_hi, r_lo, g_hi, g_lo, b_hi, b_lo] = bytes else {
+        return Err(invalid_color(value));
+    };
+
+    let r = parse_hex_channel(r_hi, r_lo)
+        .ok_or_else(|| invalid_color(value))?;
+    let g = parse_hex_channel(g_hi, g_lo)
+        .ok_or_else(|| invalid_color(value))?;
+    let b = parse_hex_channel(b_hi, b_lo)
+        .ok_or_else(|| invalid_color(value))?;
+
+    Ok(RgbColor { r, g, b })
+}
+
+fn invalid_color(value: &str) -> anyhow::Error {
+    anyhow::anyhow!("invalid color `{value}`: expected `#RRGGBB`")
+}
+
+#[allow(clippy::arithmetic_side_effects)]
+const fn parse_hex_channel(high: u8, low: u8) -> Option<u8> {
+    let Some(high) = parse_hex_digit(high) else {
+        return None;
+    };
+    let Some(low) = parse_hex_digit(low) else {
+        return None;
+    };
+
+    Some((high << 4) | low)
+}
+
+#[allow(clippy::arithmetic_side_effects)]
+const fn parse_hex_digit(value: u8) -> Option<u8> {
+    match value {
+        b'0'..=b'9' => Some(value - b'0'),
+        b'a'..=b'f' => Some(value - b'a' + 10),
+        b'A'..=b'F' => Some(value - b'A' + 10),
+        _ => None,
+    }
 }
