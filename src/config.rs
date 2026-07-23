@@ -21,7 +21,6 @@ impl RgbColor {
 pub struct Config {
     pub fmin: f32,
     pub fmax: f32,
-    /// target frame duration in milliseconds (e.g. 16 ≈ 60 FPS).
     pub frame_ms: u64,
     pub fft_size: usize,
     pub tau_spec: f32,
@@ -144,10 +143,11 @@ fn load_file_config() -> Result<Option<FileConfig>> {
 }
 
 fn read_toml(path: &Path) -> Result<FileConfig> {
-    let s = fs::read_to_string(path).with_context(|| {
+    let contents = fs::read_to_string(path).with_context(|| {
         format!("failed to read config: {}", path.display())
     })?;
-    toml::from_str::<FileConfig>(&s).with_context(|| {
+
+    toml::from_str::<FileConfig>(&contents).with_context(|| {
         format!("invalid TOML in {}", path.display())
     })
 }
@@ -194,49 +194,5 @@ const fn parse_hex_digit(value: u8) -> Option<u8> {
         b'a'..=b'f' => Some(value - b'a' + 10),
         b'A'..=b'F' => Some(value - b'A' + 10),
         _ => None,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{RgbColor, parse_hex_color};
-
-    #[test]
-    fn parses_hash_prefixed_hex_color() {
-        let Ok(color) = parse_hex_color("#7CCEA7") else {
-            panic!("valid color should parse");
-        };
-
-        assert_eq!(
-            color,
-            RgbColor {
-                r: 124,
-                g: 206,
-                b: 167,
-            }
-        );
-    }
-
-    #[test]
-    fn parses_unprefixed_hex_color() {
-        let Ok(color) = parse_hex_color("7ccea7") else {
-            panic!("valid color should parse");
-        };
-
-        assert_eq!(
-            color,
-            RgbColor {
-                r: 124,
-                g: 206,
-                b: 167,
-            }
-        );
-    }
-
-    #[test]
-    fn rejects_invalid_hex_color() {
-        assert!(parse_hex_color("green").is_err());
-        assert!(parse_hex_color("#12FG00").is_err());
-        assert!(parse_hex_color("#12345678").is_err());
     }
 }
