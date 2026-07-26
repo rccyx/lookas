@@ -2,10 +2,7 @@ use anyhow::Result;
 use crossterm::event::{self, Event};
 use std::time::Duration;
 
-use crate::app::rn::{
-    frame::Frame,
-    runtime::{InputAction, Runtime},
-};
+use crate::app::runtime::{Frame, InputAction, Runtime};
 
 pub enum TerminalAction {
     Continue,

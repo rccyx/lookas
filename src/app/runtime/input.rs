@@ -6,6 +6,11 @@ use lookas::{
 };
 use std::sync::{Arc, Mutex};
 
+pub enum KeyAction {
+    Continue,
+    Quit,
+}
+
 pub struct InputContext<'a> {
     pub audio: &'a mut AudioController,
     pub mic_shared: &'a Arc<Mutex<SharedBuf>>,
@@ -16,9 +21,9 @@ pub struct InputContext<'a> {
 pub fn handle_key(
     code: KeyCode,
     ctx: &mut InputContext<'_>,
-) -> Result<bool> {
+) -> Result<KeyAction> {
     match code {
-        KeyCode::Char('q') => return Ok(true),
+        KeyCode::Char('q') => return Ok(KeyAction::Quit),
         KeyCode::Char('1') => switch_mode(AudioMode::Mic, ctx)?,
         KeyCode::Char('2') => switch_mode(AudioMode::System, ctx)?,
         KeyCode::Char('3') => switch_mode(AudioMode::Both, ctx)?,
@@ -31,7 +36,7 @@ pub fn handle_key(
         }
         _ => {}
     }
-    Ok(false)
+    Ok(KeyAction::Continue)
 }
 
 fn switch_mode(

@@ -12,12 +12,11 @@ use realfft::num_complex::Complex;
 use realfft::{RealFftPlanner, RealToComplex};
 use std::{io::Write, sync::Arc};
 
-use super::super::{
-    fft::{FftContext, compute_spectrum},
+use super::{
+    Runtime,
     gate::GateState,
-    mix::compute_power,
+    spectrum::{FftContext, compute_spectrum},
 };
-use super::runtime::Runtime;
 
 pub struct Frame {
     cfg: FrameConfig,
@@ -153,7 +152,7 @@ impl Frame {
         }
 
         self.gate.tick(
-            compute_power(&self.mix, runtime.fft_size()),
+            sample_power(&self.mix, runtime.fft_size()),
             self.dt_s,
         );
         self.cs(runtime.fft_size());
@@ -257,5 +256,13 @@ impl Frame {
         }
 
         true
+    }
+}
+
+fn sample_power(tail: &[f32], fft_size: usize) -> f32 {
+    let sum_sq = tail.iter().map(|&x| x * x).sum::<f32>();
+    #[allow(clippy::cast_precision_loss)]
+    {
+        sum_sq / fft_size as f32
     }
 }

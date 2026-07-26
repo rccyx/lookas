@@ -7,7 +7,14 @@ use lookas::{
 };
 use std::sync::{Arc, Mutex};
 
-use super::super::input::{InputContext, handle_key};
+mod frame;
+mod gate;
+mod input;
+mod spectrum;
+
+pub(super) use frame::Frame;
+
+use input::{InputContext, KeyAction, handle_key};
 
 pub enum InputAction {
     Continue,
@@ -89,7 +96,7 @@ impl Runtime {
             ring_cap: self.cap,
         };
 
-        if handle_key(code, &mut ctx)? {
+        if matches!(handle_key(code, &mut ctx)?, KeyAction::Quit) {
             return Ok(InputAction::Quit);
         }
 

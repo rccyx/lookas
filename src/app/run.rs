@@ -7,9 +7,8 @@ mod frame_clock;
 mod terminal_event;
 mod terminal_session;
 
-use super::rn::{
-    frame::Frame,
-    runtime::{Runtime, RuntimeDiagnostics, StartupCapture},
+use super::runtime::{
+    Frame, Runtime, RuntimeDiagnostics, StartupCapture,
 };
 use config_watch::ColorWatch;
 use frame_clock::FrameClock;
