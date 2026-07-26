@@ -7,6 +7,7 @@ use crossterm::{
 use lookas::{config::Config, utils::scopeguard};
 use std::{
     io::{BufWriter, Write, stdout},
+    sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
@@ -18,8 +19,31 @@ use super::rn::{
     },
 };
 
+const CONFIG_WATCH_INTERVAL: Duration = Duration::from_millis(125);
+
 pub fn run() -> Result<()> {
     let cfg = Config::load()?;
+
+    let (color_tx, color_rx) = mpsc::channel();
+    let initial_color = cfg.color;
+    thread::spawn(move || {
+        let mut current_color = initial_color;
+
+        loop {
+            thread::sleep(CONFIG_WATCH_INTERVAL);
+
+            let Ok(next_cfg) = Config::load() else {
+                continue;
+            };
+
+            if next_cfg.color != current_color {
+                current_color = next_cfg.color;
+                if color_tx.send(current_color).is_err() {
+                    break;
+                }
+            }
+        }
+    });
 
     let mut out = BufWriter::with_capacity(1024 * 1024, stdout());
     terminal::enable_raw_mode()?;
@@ -78,6 +102,23 @@ pub fn run() -> Result<()> {
             }
         }
 
+        let mut next_color = None;
+        while let Ok(color) = color_rx.try_recv() {
+            next_color = Some(color);
+        }
+
+        if let Some(color) = next_color {
+            queue!(
+                out,
+                SetForegroundColor(Color::Rgb {
+                    r: color.r,
+                    g: color.g,
+                    b: color.b,
+                }),
+            )?;
+            out.flush()?;
+        }
+
         let now = Instant::now();
         let dt = now.duration_since(last);
         if dt < target_dt {
@@ -85,6 +126,7 @@ pub fn run() -> Result<()> {
                 thread::sleep(diff);
             }
         }
+
         let now = Instant::now();
         let dt_s = now.duration_since(last).as_secs_f32();
         last = now;
