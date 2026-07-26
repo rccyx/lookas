@@ -1,148 +1,59 @@
 use anyhow::Result;
-use crossterm::{
-    cursor, event, execute, queue,
-    style::{Color, ResetColor, SetForegroundColor},
-    terminal::{self, ClearType},
-};
-use lookas::{config::Config, utils::scopeguard};
-use std::{
-    io::{BufWriter, Write, stdout},
-    sync::mpsc,
-    thread,
-    time::{Duration, Instant},
-};
+use crossterm::terminal;
+use lookas::config::Config;
+
+mod config_watch;
+mod frame_clock;
+mod terminal_event;
+mod terminal_session;
 
 use super::rn::{
     frame::Frame,
-    runtime::{
-        InputAction, Runtime, RuntimeDiagnostics, StartupCapture,
-    },
+    runtime::{Runtime, RuntimeDiagnostics, StartupCapture},
 };
-
-const CONFIG_WATCH_INTERVAL: Duration = Duration::from_millis(125);
+use config_watch::ColorWatch;
+use frame_clock::FrameClock;
+use terminal_event::{
+    TerminalAction, TerminalEventContext, handle_terminal_event,
+};
+use terminal_session::TerminalSession;
 
 pub fn run() -> Result<()> {
     let cfg = Config::load()?;
-
-    let (color_tx, color_rx) = mpsc::channel();
-    let initial_color = cfg.color;
-    thread::spawn(move || {
-        let mut current_color = initial_color;
-
-        loop {
-            thread::sleep(CONFIG_WATCH_INTERVAL);
-
-            let Ok(next_cfg) = Config::load() else {
-                continue;
-            };
-
-            if next_cfg.color != current_color {
-                current_color = next_cfg.color;
-                if color_tx.send(current_color).is_err() {
-                    break;
-                }
-            }
-        }
-    });
-
-    let mut out = BufWriter::with_capacity(1024 * 1024, stdout());
-    terminal::enable_raw_mode()?;
-    execute!(
-        out,
-        terminal::EnterAlternateScreen,
-        cursor::Hide,
-        terminal::Clear(ClearType::All),
-        SetForegroundColor(Color::Rgb {
-            r: cfg.color.r,
-            g: cfg.color.g,
-            b: cfg.color.b,
-        }),
-    )?;
-    out.flush()?;
-
-    let _cleanup = scopeguard::guard((), |()| {
-        let mut o = stdout();
-        let _ = execute!(
-            o,
-            ResetColor,
-            cursor::Show,
-            terminal::LeaveAlternateScreen
-        );
-        let _ = terminal::disable_raw_mode();
-    });
-
+    let color_watch = ColorWatch::spawn(cfg.color);
+    let mut terminal = TerminalSession::enter(cfg.color)?;
     let mut runtime = Runtime::new(&cfg)?;
-    report_diagnostics(runtime.diagnostics());
+    report_runtime_diagnostics(runtime.diagnostics());
 
     let (w, h) = terminal::size()?;
     let mut frame = Frame::new(&cfg, &runtime, w, h);
-    let target_dt = Duration::from_millis(cfg.frame_ms);
-    let mut last = Instant::now();
+    let mut clock = FrameClock::new(cfg.frame_ms);
 
     loop {
-        let mut layout_dirty = false;
+        let mut event_ctx = TerminalEventContext {
+            runtime: &mut runtime,
+            frame: &mut frame,
+        };
 
-        if event::poll(Duration::ZERO)? {
-            match event::read()? {
-                event::Event::Resize(nw, nh) => {
-                    frame.resize(nw, nh);
-                    layout_dirty = true;
-                }
-                event::Event::Key(k) => {
-                    match runtime.handle_key(k.code)? {
-                        InputAction::Quit => return Ok(()),
-                        InputAction::AudioChanged => {
-                            frame.clear_filters();
-                        }
-                        InputAction::Continue => {}
-                    }
-                    frame.reset_gate();
-                }
-                _ => {}
+        match handle_terminal_event(&mut event_ctx)? {
+            TerminalAction::Quit => return Ok(()),
+            TerminalAction::Refresh => {
+                terminal.clear()?;
             }
+            TerminalAction::Continue => {}
         }
 
-        let mut next_color = None;
-        while let Ok(color) = color_rx.try_recv() {
-            next_color = Some(color);
+        if let Some(color) = color_watch.latest() {
+            terminal.set_color(color)?;
         }
 
-        if let Some(color) = next_color {
-            queue!(
-                out,
-                SetForegroundColor(Color::Rgb {
-                    r: color.r,
-                    g: color.g,
-                    b: color.b,
-                }),
-            )?;
-            out.flush()?;
-        }
-
-        let now = Instant::now();
-        let dt = now.duration_since(last);
-        if dt < target_dt {
-            if let Some(diff) = target_dt.checked_sub(dt) {
-                thread::sleep(diff);
-            }
-        }
-
-        let now = Instant::now();
-        let dt_s = now.duration_since(last).as_secs_f32();
-        last = now;
-
-        if layout_dirty {
-            queue!(out, terminal::Clear(ClearType::All),)?;
-            out.flush()?;
-        }
-
+        frame.set_delta(clock.tick());
         frame.ensure_filterbank(&runtime);
-        frame.set_delta(dt_s);
-        frame.tick(&runtime, &mut out)?;
+        frame.tick(&runtime, terminal.writer())?;
     }
 }
 
-fn report_diagnostics(diagnostics: &RuntimeDiagnostics) {
+fn report_runtime_diagnostics(diagnostics: &RuntimeDiagnostics) {
     match &diagnostics.startup_capture {
         StartupCapture::System => {}
         StartupCapture::MicFallback { system_error } => {
