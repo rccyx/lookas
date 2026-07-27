@@ -10,7 +10,6 @@ use std::sync::{Arc, Mutex};
 mod frame;
 mod gate;
 mod input;
-mod spectrum;
 
 pub(super) use frame::Frame;
 

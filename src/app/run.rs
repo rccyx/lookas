@@ -3,14 +3,14 @@ use crossterm::terminal;
 use lookas::config::Config;
 
 mod config_watch;
+mod diagnostics;
 mod frame_clock;
 mod terminal_event;
 mod terminal_session;
 
-use super::runtime::{
-    Frame, Runtime, RuntimeDiagnostics, StartupCapture,
-};
+use super::runtime::{Frame, Runtime};
 use config_watch::ConfigWatch;
+use diagnostics::report_runtime_diagnostics;
 use frame_clock::FrameClock;
 use terminal_event::{
     TerminalAction, TerminalEventContext, handle_terminal_event,
@@ -52,17 +52,5 @@ pub fn run() -> Result<()> {
         frame.set_delta(clock.tick());
         frame.ensure_filterbank(&runtime);
         frame.tick(&runtime, terminal.writer())?;
-    }
-}
-
-fn report_runtime_diagnostics(diagnostics: &RuntimeDiagnostics) {
-    match &diagnostics.startup_capture {
-        StartupCapture::System => {}
-        StartupCapture::MicFallback { system_error } => {
-            eprintln!(
-                "[lookas] system capture failed: {system_error}"
-            );
-            eprintln!("[lookas] fallback active: using mic");
-        }
     }
 }
