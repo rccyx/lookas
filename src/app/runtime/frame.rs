@@ -119,6 +119,49 @@ impl Frame {
         self.gate.reset();
     }
 
+    pub fn apply_config(&mut self, cfg: &Config, runtime: &Runtime) {
+        let filterbank_changed = self.cfg.fmin.to_bits()
+            != cfg.fmin.to_bits()
+            || self.cfg.fmax.to_bits() != cfg.fmax.to_bits();
+        let fft_size = runtime.fft_size();
+        let fft_changed = self.mix.len() != fft_size;
+
+        self.cfg.tau_spec = cfg.tau_spec;
+        self.cfg.flow_k = cfg.flow_k;
+        self.cfg.spr_k = cfg.spr_k;
+        self.cfg.spr_zeta = cfg.spr_zeta;
+        self.cfg.fmin = cfg.fmin;
+        self.cfg.fmax = cfg.fmax;
+
+        self.gate.open_db = cfg.gate_db;
+        self.gate.close_db = (cfg.gate_db - 3.0).max(-80.0);
+
+        if fft_changed {
+            let half = fft_size / 2;
+            let mut planner = RealFftPlanner::<f32>::new();
+            let fft = planner.plan_fft_forward(fft_size);
+
+            self.window = hann(fft_size);
+            self.buf = fft.make_input_vec();
+            self.fft_out = fft.make_output_vec();
+            self.fft = fft;
+            self.half = half;
+            self.spec_pow = vec![0.0; half];
+            self.mix = vec![0.0; fft_size];
+            self.mic_tail = Vec::with_capacity(fft_size);
+            self.sys_tail = Vec::with_capacity(fft_size);
+            self.analyzer.spec_pow_smooth = vec![0.0; half];
+            self.reset_gate();
+        }
+
+        if filterbank_changed || fft_changed {
+            self.clear_filters();
+            self.analyzer.eq_ref.fill(1e-6);
+            self.analyzer.db_low = -60.0;
+            self.analyzer.db_high = -20.0;
+        }
+    }
+
     pub fn clear_filters(&mut self) {
         self.analyzer.filters.clear();
     }

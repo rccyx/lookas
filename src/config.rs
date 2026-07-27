@@ -17,7 +17,7 @@ impl RgbColor {
     };
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Config {
     pub fmin: f32,
     pub fmax: f32,

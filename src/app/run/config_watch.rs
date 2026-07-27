@@ -1,38 +1,43 @@
-use lookas::config::{Config, RgbColor};
+use anyhow::Result;
+use lookas::config::Config;
 use std::{
-    sync::mpsc::{self, Receiver},
+    sync::mpsc::{self, Receiver, TryRecvError},
     thread,
     time::Duration,
 };
 
 const CONFIG_WATCH_INTERVAL: Duration = Duration::from_millis(125);
 
-pub struct ColorWatch {
-    rx: Receiver<RgbColor>,
+pub struct ConfigWatch {
+    rx: Receiver<Result<Config>>,
 }
 
-impl ColorWatch {
+impl ConfigWatch {
     #[must_use]
-    pub fn spawn(initial_color: RgbColor) -> Self {
+    pub fn spawn(initial_cfg: Config) -> Self {
         let (tx, rx) = mpsc::channel();
 
         thread::spawn(move || {
-            let mut current_color = initial_color;
+            let mut current_cfg = initial_cfg;
 
             loop {
                 thread::sleep(CONFIG_WATCH_INTERVAL);
 
-                let Ok(next_cfg) = Config::load() else {
-                    continue;
-                };
+                match Config::load() {
+                    Ok(next_cfg) => {
+                        if next_cfg == current_cfg {
+                            continue;
+                        }
 
-                if next_cfg.color == current_color {
-                    continue;
-                }
-
-                current_color = next_cfg.color;
-                if tx.send(current_color).is_err() {
-                    break;
+                        current_cfg = next_cfg.clone();
+                        if tx.send(Ok(next_cfg)).is_err() {
+                            break;
+                        }
+                    }
+                    Err(error) => {
+                        let _ = tx.send(Err(error));
+                        break;
+                    }
                 }
             }
         });
@@ -40,13 +45,18 @@ impl ColorWatch {
         Self { rx }
     }
 
-    pub fn latest(&self) -> Option<RgbColor> {
-        let mut next_color = None;
+    pub fn latest(&self) -> Result<Option<Config>> {
+        let mut latest = None;
 
-        while let Ok(color) = self.rx.try_recv() {
-            next_color = Some(color);
+        loop {
+            match self.rx.try_recv() {
+                Ok(Ok(cfg)) => latest = Some(cfg),
+                Ok(Err(error)) => return Err(error),
+                Err(TryRecvError::Empty) => return Ok(latest),
+                Err(TryRecvError::Disconnected) => {
+                    anyhow::bail!("config watcher stopped");
+                }
+            }
         }
-
-        next_color
     }
 }

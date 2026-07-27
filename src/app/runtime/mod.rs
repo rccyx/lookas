@@ -107,6 +107,24 @@ impl Runtime {
         Ok(InputAction::Continue)
     }
 
+    pub fn set_fft_size(&mut self, fft_size: usize) {
+        if fft_size == self.fft_size {
+            return;
+        }
+
+        let cap = ring_cap(fft_size);
+
+        if let Ok(mut buffer) = self.mic_shared.lock() {
+            *buffer = SharedBuf::new(cap);
+        }
+        if let Ok(mut buffer) = self.sys_shared.lock() {
+            *buffer = SharedBuf::new(cap);
+        }
+
+        self.fft_size = fft_size;
+        self.cap = cap;
+    }
+
     pub const fn fft_size(&self) -> usize {
         self.fft_size
     }

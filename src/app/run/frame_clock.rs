@@ -17,6 +17,10 @@ impl FrameClock {
         }
     }
 
+    pub fn set_frame_ms(&mut self, frame_ms: u64) {
+        self.target_dt = Duration::from_millis(frame_ms);
+    }
+
     pub fn tick(&mut self) -> f32 {
         let now = Instant::now();
         let dt = now.duration_since(self.last);

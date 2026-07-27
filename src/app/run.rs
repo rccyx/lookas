@@ -10,7 +10,7 @@ mod terminal_session;
 use super::runtime::{
     Frame, Runtime, RuntimeDiagnostics, StartupCapture,
 };
-use config_watch::ColorWatch;
+use config_watch::ConfigWatch;
 use frame_clock::FrameClock;
 use terminal_event::{
     TerminalAction, TerminalEventContext, handle_terminal_event,
@@ -19,7 +19,7 @@ use terminal_session::TerminalSession;
 
 pub fn run() -> Result<()> {
     let cfg = Config::load()?;
-    let color_watch = ColorWatch::spawn(cfg.color);
+    let config_watch = ConfigWatch::spawn(cfg.clone());
     let mut terminal = TerminalSession::enter(cfg.color)?;
     let mut runtime = Runtime::new(&cfg)?;
     report_runtime_diagnostics(runtime.diagnostics());
@@ -42,8 +42,11 @@ pub fn run() -> Result<()> {
             TerminalAction::Continue => {}
         }
 
-        if let Some(color) = color_watch.latest() {
-            terminal.set_color(color)?;
+        if let Some(cfg) = config_watch.latest()? {
+            terminal.set_color(cfg.color)?;
+            runtime.set_fft_size(cfg.fft_size);
+            frame.apply_config(&cfg, &runtime);
+            clock.set_frame_ms(cfg.frame_ms);
         }
 
         frame.set_delta(clock.tick());
