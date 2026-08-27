@@ -1,56 +1,70 @@
-<h1 align="center">Lookas</h1>
-<p align="center">
-  <a href="https://github.com/rccyx/lookas/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/rccyx/lookas/ci.yml?style=for-the-badge&color=black&labelColor=111111&logo=githubactions&logoColor=white" alt="CI Status"/>
-  </a>
-  <a href="https://www.kernel.org">
-    <img src="https://img.shields.io/badge/Platform-Linux-black?logo=linux&logoColor=white&style=for-the-badge" alt="Platform: Linux" />
-  </a>
-  <a href="https://crates.io/crates/lookas">
-    <img src="https://img.shields.io/crates/v/lookas?color=black&logo=rust&logoColor=white&style=for-the-badge" alt="Crates.io" />
-  </a>
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-black?logo=open-source-initiative&logoColor=white&style=for-the-badge" alt="License: MIT" />
-  </a>
-</p>
+# lookas
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=lVDFpoCkvh8">
     <img src="./assets/demo.gif" alt="Lookas Demo" width="100%">
-  </a>
 </p>
 
-<div align="center">
-  <video title"demo" src="https://github.com/user-attachments/assets/d46f74ad-77d3-4932-b02e-ff91df87d26b" width="100%" controls>
-    Your browser does not support the video tag.
-  </video>
-</div>
 
-**What it does:**
+## What 
 
-Lookas captures **microphone input, system audio, or both**, converts the signal into frequency bands using a mel-scale FFT, and renders it as smooth, physics-driven bars directly in the terminal.
+This is an ultra-lightweight terminal audio visualizer for Linux. 
 
-**How it works:**
+It captures audio (microphone input, system, or both), and translates sound into smooth, physics driven bars. 
 
-Audio is captured from the microphone, system loopback, or both. The signal is windowed with a Hann function to reduce spectral leakage, then transformed via FFT into frequency bins. These bins are then remapped onto a mel-scale filterbank so the visualization aligns with human loudness perception rather than linear frequency spacing.
+Sound is rendered the way humans actually perceive it, not like a 90s disco strobe.
 
-Frequency balance is handled by [A-weighting](http://cdn.standards.iteh.ai/samples/10880/e138f40fd9e84af8906910f4b6d8a4df/IEC-61672-2-2003.pdf), which models the human ear's actual sensitivity curve across frequency.
+Quite different from others you may know like CAVA. It uses a different set of algorithms entirely (which I'll break down below).
 
-Dynamic range is managed continuously using percentile tracking instead of fixed scaling, with a noise gate suppressing background hiss.
+## Why 
 
-The spectrum uses asymmetric smoothing: energy attacks instantly so every transient is captured at full resolution, while the decay tail uses an exponential moving average for a smooth release.
+On my machine, workspace 3 is basically all terminals (as you can see in the demo).
 
-Animation is basically a spring damper model. Energy diffuses laterally between neighboring bands, which produces a fluid motion instead of twitchiness.
+Each window can hold about six or seven tmux panes.
 
-To have it rendered at 60+ FPS while keeping perf high: Unicode block characters to achieve smooth gradients without expensive redraws. The terminal is only cleared once per frame, layout is recomputed only when geometry changes, and output is written in large contiguous chunks to avoid flicker.
+One window is for terminal work, the other is Neovim.
+
+The problem is I use a window manager, so with only two windows, they each spread out to take up half the screen, way bigger than they need to be.
+
+If I just split the screen into two horizontal blocks, it looks ugly: you get the editor and one huge horizontal terminal doing absolutely nothing.
+
+So I added a third terminal to even things out and make the layout look right.
+
+When I'm in Neovim, I hit `Ctrl+F` to expand it to full screen. But when I go back, that third terminal is still just sitting there, empty.
+
+Now, I always have music or some kind of sound playing for deep focused work, so I figured, why not put a visualizer in that space instead of leaving it dead?
+
+CAVA is probably the most well known option, but it's too twitchy, jarring, and visually noisy. It doesn't look smooth no matter how much you tweak it.
+
+This solves that problem, plus it's written in Rust, and it's more performant too.
+
+Speaking of which:
+
+## How it works & performance
+
+The program is extremely lightweight.
+
+It takes up practically nothing, running at ~3.8 MB of RAM and ~1.25% of a single CPU core.
+
+Compared to CAVA, which is around 16 MB of RAM and 5.5% CPU, this is roughly 4x lighter on both memory and processor usage.
+
+So, how does it work?
+
+The entire DSP and render pipeline is strictly zero-allocation in the hot path. Every audio ring buffer, FFT state array, and terminal character vector is sized and allocated exactly once when the program starts.
+
+The program starts a loop, during the loop, it tuns at 60 fps, and it just mutates those existing slices in place.
+
+Since memory is never reallocated inside the loop, there's no overhead or fragmentation.
+
+And for the visuals, it builds the entire frame inside a single pre-allocated byte buffer and flushes it to a 1MB `BufWriter<T>` in one contiguous chunk.
+
+This removes terminal I/O bottlenecks and eliminates screen flickering.
+
+Older Lookas versions used to flicker on tmux and Electron-based terminal emulators. Not anymore.
 
 ## CAVA Comparison
 
-You're probably familiar with CAVA and similar tools.
+This table is a brief illustration over how both differ.
 
-<details><summary><b>How both differ?</b></summary>
-
-<br/>
 
 | Feature         | CAVA              | Lookas                   |
 | :-------------- | :---------------- | :----------------------- |
@@ -62,18 +76,6 @@ You're probably familiar with CAVA and similar tools.
 | **Physics**     | Gravity fall-off  | Spring-damper system     |
 | **Interaction** | None              | Lateral energy diffusion |
 
-</details>
-<details><summary><b>Visual comparison</b></summary>
-
-Both Lookas ( ← ) and CAVA ( → ) are running on default configs
-
-<div align="center">
-  <video src="https://github.com/user-attachments/assets/33b5d98b-a6e7-4d10-b093-77abfb25f255" width="100%" controls>
-    Your browser does not support the video tag.
-  </video>
-</div>
-
-</details>
 
 ## Installation
 
@@ -83,11 +85,18 @@ Simply run:
 cargo install lookas
 ```
 
-If your system already has working audio (microphone or system sound), it will just run.
+Or install directly from source
+
+```bash
+cargo install --git https://github.com/rccyx/lookas.git
+```
+
+Dependencies are quite minimal (`cpal` for audio, `crossterm` for UI, `realfft` for the math). 
+
+If your Linux setup already has working audio, cargo will install these and it will just run.
 
 > [!IMPORTANT]
-> On very minimal Linux installs, you might be missing a couple of audio packages.
-> If the program fails to start or can't capture audio, run:
+> If you are on a barebones or minimal Linux install (like a raw Arch or Debian base) and the program fails to capture audio, you might just be missing the basic system audio headers. So run:
 >
 > ```bash
 > sudo apt install -y libasound2-dev pulseaudio-utils
@@ -95,7 +104,7 @@ If your system already has working audio (microphone or system sound), it will j
 >
 > This works for both PulseAudio and PipeWire systems (via `pipewire-pulse`).
 
-## Basic Usage
+## Usage
 
 Just run:
 
@@ -103,9 +112,11 @@ Just run:
 lookas
 ```
 
-It will attempt to start with system audio. If system audio isn't available, it automatically falls back to microphone input.
+That's it.
 
-## Controls
+It automatically attempts to grab system audio (the desktop loopback). If that's not available, it safely falls back to the microphone.
+
+While running, you can press:
 
 - `1` – Microphone input
 - `2` – System audio (loopback / monitor)
@@ -113,21 +124,15 @@ It will attempt to start with system audio. If system audio isn't available, it 
 - `r` – Restart audio pipeline
 - `q` – Quit
 
-Updated the full configuration section, including `color`, and corrected the existing mismatches such as `target_fps_ms` → `frame_ms`, the FFT range, and the gate default.
+## Configuration
 
-## Configuration (Optional)
+This all optional. You don't need a config file. 
 
-This works without a config file. Configuration exists only for changing how the visualizer looks and reacts to sound.
+The default physics and smoothing values are already tuned for the fluid motion you see in the demo.
 
-It reads:
+But, if you want to tweak some things (colors, cap the frequency range, spring physics) you can drop a config file here `~/.config/lookas.toml`:
 
-`~/.config/lookas.toml`
-
-To create the file:
-
-```bash
-mkdir -p ~/.config
-cat > ~/.config/lookas.toml <<'TOML'
+```toml
 color = "#7CCEA7"
 
 fmin = 30.0
@@ -139,15 +144,40 @@ gate_db = -65.0
 flow_k = 0.18
 spr_k = 60.0
 spr_zeta = 1.0
-TOML
 ```
 
 > [!NOTE]
 > Every setting is optional. Any omitted value uses the built-in default.
 
+Those config keys may not be super intuitive, so let me explain the algorithms used here first:
+
+#### Mel scale
+
+Raw FFT gives raw frequency bins spaced evenly/linearly, this is how CAVA works. Without mel scale, grouping those bins into bars linearly (or even logarithmically) still doesn't quite match how human pitch perception actually works. Mel scale groups them the way your ear resolves pitch differences, so bar spacing feels natural instead of bunching up too much at one end.
+
+#### A-weighting
+
+A quiet high-pitched hiss and a bass note can carry similar raw energy but sound completely different in volume to a human ear. Without A-weighting, bars just reflect raw signal strength, which makes bass frequencies look artificially dominant and highs look lighter than they actually sound. A-weighting rebalances each bar using the same curve sound level meters use, so bar height reflects how loud something sounds.
+
+#### Attack/release envelope (`tau_spec`)
+
+Audio energy jumps around constantly, frame to frame. Without any smoothing, bars would flicker and jitter nonstop, smoothing everything equally, though, would dull sharp hits like snares and kicks, which makes it feel laggy. This is why bars snap up instantly on a hit but fade out gradually afterward. This is the smae instant-attack, slow-release principle used in compressors and VU meters.
+
+#### Noise gate (`gate_db`)
+
+Microphones and even system audio pick up faint background noise (room hiss, hum, etc) silence that isn't perfectly zero. Without a gate, bars would twitch and flicker even when nothing is actually playing. The gate sets a threshold, anything quieter than that is treated as silence and the bars drop to zero, instead of jittering on noise floor.
+
+#### Diffusion (`flow_k`)
+
+Without diffusion, every bar reacts only to its own frequency band, completely independent of its neighbors. That looks choppy and disconnected, more like a bunch of separate spikes than one cohesive shape. Diffusion lets each bar's motion bleed slightly into the bars next to it, so energy looks like it's flowing across the spectrum instead of popping up in isolated columns.
+
+#### Spring-damper motion (`spr_k`, `spr_zeta`)
+
+Without physics-based motion, bars would either snap instantly to their target value (looks robotic and harsh) or fall off in a straight line like basic gravity (looks stiff and mechanical). A spring-damper model moves each bar toward its target the way a real spring settles, smooth acceleration in, smooth settle at the end, which is what makes the motion feel alive instead of animated.
+
 ### Color
 
-The `color` value controls the foreground color used to render the bouncing bars.
+The hex color code for the foreground bars.
 
 It accepts a 6 digit RGB hex color with or without the leading `#`:
 
@@ -165,68 +195,81 @@ The default is white:
 color = "#FFFFFF"
 ```
 
-### Frequency Boundaries
+### Frequency Boundaries (fmin & fmax)
 
-The `fmin` and `fmax` values determine the lowest and highest frequencies rendered by the visualizer, measured in Hertz.
+The lowest and highest frequencies rendered by the visualizer, measured in Hertz.
 
 `fmin` defaults to `30.0` and is restricted to `10.0` through `1000.0`.
 
 `fmax` defaults to `16000.0` and is restricted to `1000.0` through `24000.0`.
 
-If `fmin` is equal to or greater than `fmax`, Lookas restores both values to their defaults.
+Why change this? 
 
-> [!WARNING]
-> Pushing `fmax` too high can leave empty bars on the right side of the spectrum when the audio source contains little high-frequency energy.
+If you set fmax too high (like 24,000Hz) and your audio source contains very little high-frequency energy, you'll just end up with dead or empty bars on the right side of your terminal.
 
-### Spectrum Resolution
+### Spectrum Resolution (fft_size)
 
-The `fft_size` value controls the number of samples processed by each Fast Fourier Transform window.
 
-It defaults to `2048` and is restricted to `512` through `4096`.
+Controls the number of samples processed by each Fast Fourier Transform window.
 
-Lower values react faster but provide less frequency detail. Higher values provide finer separation at the cost of additional latency and processing work.
+Defaults to 2048 (restricted to 512 through 4096).
 
-### Frame Pacing
+- Lower values (512, 1024) make the visualizer react faster but give you less frequency detail.
 
-The `frame_ms` value controls the target duration of each rendered frame in milliseconds.
+- Higher values (4096) give you much finer bin separation, at the cost of additional latency and processing work.
 
-It defaults to `16`, which targets roughly 60 frames per second.
 
-The accepted range is `8` through `50`. Lower values render more frequently and require more terminal throughput. Higher values reduce CPU use but make the animation less responsive.
+### Frame Pacing (frame_ms)
 
-### Spectrum Smoothing
+The target duration of each rendered frame in milliseconds. Defaults to 16 (targets ~60 FPS). Bounded between 8 and 50.
 
-The `tau_spec` value controls how quickly spectrum energy decays after a transient.
+Drop it to 8 if you want 120 FPS and your terminal throughput can handle it.
 
-Attacks remain immediate. This value only affects the release.
+Bump it to 32 if you want to save even more CPU.
 
-It defaults to `0.06` and is restricted to `0.01` through `0.20`. Lower values decay faster. Higher values produce a longer visual tail.
 
-### Noise Gate
+### Spectrum Smoothing (tau_spec)
 
-The `gate_db` value controls the silence threshold in decibels.
+Controls how quickly the spectrum energy decays after a transient. Defaults to 0.06 (restricted to 0.01 through 0.20).
 
-It defaults to `-65.0` and is restricted to `-80.0` through `-30.0`.
+Notice this only affects the release. Attacks are always immediate so you never miss a sharp transient (like a snare hit). Lowering this value makes the bars decay faster, while raising it produces a longer visual tail.
 
-More negative values make Lookas more sensitive to quiet audio. Less negative values suppress more background noise.
 
-### Motion Coupling
+It defaults to `0.06`
 
-The `flow_k` value controls how strongly energy diffuses between neighboring bars.
 
-It defaults to `0.18` and is restricted to `0.0` through `1.0`.
+### Noise Gate (gate_db)
 
-A value of `0.0` makes every frequency band move independently. Higher values make neighboring bars move more like a continuous fluid surface.
+The silence threshold in decibels. Defaults to -65.0 (restricted to -80.0 through -30.0).
 
-### Spring-Damper Animation
 
-The `spr_k` and `spr_zeta` values control the spring model used to animate the bars.
+If you are using your microphone, it's going to pick up room noise and static. Dropping this threshold (e.g., -50.0) forces it to ignore that background hiss so the visualizer actually drops to absolute zero when you're not talking.
 
-`spr_k` controls spring stiffness. It defaults to `60.0` and is restricted to `10.0` through `200.0`.
 
-`spr_zeta` controls damping. It defaults to `1.0` and is restricted to `0.1` through `2.0`.
+### Motion Coupling (flow_k)
 
-Values below `1.0` allow overshoot and bounce. A value of `1.0` is critically damped. Values above `1.0` produce a slower, heavier response.
+This is what makes it look like a fluid. 
+
+It dictates how strongly energy diffuses between neighboring bars. 
+
+Defaults to 0.18 (restricted to 0.0 through 1.0).
+
+If you set this to 0.0, every frequency band moves completely independently (which makes it look like standard CAVA). Higher values drag neighboring bars along for the ride.
+
+
+### Spring-Damper Animation (spr_k & spr_zeta)
+
+
+These control the physics of the bounce.
+
+
+- spr_k (stiffness): Defaults to 60.0 (restricted to 10.0 through 200.0). Higher values make the bars snap back aggressively.
+
+- spr_zeta (damping): Defaults to 1.0 (restricted to 0.1 through 2.0). A value of 1.0 is critically damped (smooth stop). 
+
+You can drop it below 1.0 if you want the bars to overshoot and visually bounce. 
+
+Go above 1.0 for a sluggish/heavy response.
 
 ## License
 
