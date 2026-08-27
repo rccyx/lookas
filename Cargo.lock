@@ -509,7 +509,7 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 
 [[package]]
 name = "lookas"
-version = "1.9.0"
+version = "1.10.0"
 dependencies = [
  "anyhow",
  "cpal",
