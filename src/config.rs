@@ -116,7 +116,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize)]
 struct FileConfig {
     pub fmin: Option<f32>,
     pub fmax: Option<f32>,

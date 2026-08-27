@@ -143,15 +143,12 @@ impl Runtime {
     pub fn copy_mic_tail(&self, tail: &mut Vec<f32>) -> bool {
         self.mic_shared
             .try_lock()
-            .ok()
-            .is_some_and(|b| b.copy_last_n_into(self.fft_size, tail))
+            .is_ok_and(|b| b.copy_last_n_into(self.fft_size, tail))
     }
-
     pub fn copy_system_tail(&self, tail: &mut Vec<f32>) -> bool {
         self.sys_shared
             .try_lock()
-            .ok()
-            .is_some_and(|b| b.copy_last_n_into(self.fft_size, tail))
+            .is_ok_and(|b| b.copy_last_n_into(self.fft_size, tail))
     }
 
     fn update_sample_rate(&mut self) -> bool {
