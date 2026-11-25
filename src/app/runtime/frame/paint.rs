@@ -22,7 +22,7 @@ impl FramePaint {
         let frame_cap = (w as usize * h as usize * 4).max(64 * 1024);
 
         Self {
-            lay: layout_for(w, h, top_pad),
+            lay: layout_for(w, top_pad),
             render: Vec::with_capacity(frame_cap),
             w,
             h,
@@ -37,7 +37,7 @@ impl FramePaint {
     pub fn resize(&mut self, w: u16, h: u16) {
         self.w = w;
         self.h = h;
-        self.lay = layout_for(self.w, self.h, self.top_pad);
+        self.lay = layout_for(self.w, self.top_pad);
     }
 
     pub fn draw<W: Write>(

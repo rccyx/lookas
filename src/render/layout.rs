@@ -13,7 +13,7 @@ pub struct Layout {
     clippy::cast_possible_truncation,
     clippy::arithmetic_side_effects
 )]
-pub fn layout_for(w: u16, _h: u16, top_pad: u16) -> Layout {
+pub fn layout_for(w: u16, top_pad: u16) -> Layout {
     let left_pad = 1u16;
     let right_pad = 2u16;
     let usable_cols = w.saturating_sub(left_pad + right_pad);
