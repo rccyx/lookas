@@ -6,9 +6,7 @@ runs:
   steps:
     - name: Install Rust toolchain
       shell: bash
-      run: |
-        rustup toolchain install --profile minimal
-        rustup component add rustfmt clippy
+      run: rustc --version
 
     - name: Rust cache
       uses: Swatinem/rust-cache@v2
