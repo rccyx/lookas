@@ -16,23 +16,7 @@ Quite different from others you may know like CAVA. It uses a different set of a
 
 ## Why
 
-On my machine, workspace 3 is basically all terminals (as you can see in the demo).
-
-Each window can hold about six or seven tmux panes.
-
-One window is for terminal work, the other is Neovim.
-
-The problem is I use a window manager, so with only two windows, they each spread out to take up half the screen, way bigger than they need to be.
-
-If I just split the screen into two horizontal blocks, it looks ugly. You get the editor and one huge horizontal terminal doing absolutely nothing.
-
-So I added a third terminal to even things out and make the layout look right.
-
-When I'm in Neovim, I hit `Ctrl+F` to expand it to full screen. But when I go back, that third terminal is still just sitting there, empty.
-
-Now, I always have music or some kind of sound playing for deep focused work, so I figured, why not put a visualizer in that space instead of leaving it dead?
-
-CAVA is the most well known option, but it's too twitchy/jarring, basically visually noisy. It doesn't look smooth no matter how much you tweak it.
+CAVA is the most well known option to do this, but it's too twitchy/jarring, basically visually noisy. It doesn't look psychoacoustic no matter how much you tweak it.
 
 This solves that problem, plus it's written in Rust, and it's more performant too.
 
